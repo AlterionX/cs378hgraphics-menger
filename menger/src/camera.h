@@ -7,6 +7,15 @@ class Camera {
 public:
 	glm::mat4 get_view_matrix() const;
 	// FIXME: add functions to manipulate camera objects.
+    void mouse_rot(double dx, double dy);
+    void mouse_zoom(double dx, double dy);
+    void mouse_strafe(double dx, double dy);
+
+    void move(double dt, int dir);
+    void roll(double dt, int dir);
+    void pan_x(double dt, int dir);
+    void pan_y(double dt, int dir);
+
 private:
 	float camera_distance_ = 3.0;
 	glm::vec3 look_ = glm::vec3(0.0f, 0.0f, -1.0f);

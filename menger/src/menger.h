@@ -14,8 +14,10 @@ public:
 	void generate_geometry(std::vector<glm::vec4>& obj_vertices,
 		std::vector<glm::uvec3>& obj_faces) const;
 private:
+    void gen_sub_box(std::vector<glm::vec4>& ov, std::vector<glm::uvec3>& of, unsigned int depth) const;
+
 	int nesting_level_ = 0;
-	bool dirty_ = false;
+	bool dirty_ = true;
 };
 
 #endif

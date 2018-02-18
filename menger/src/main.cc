@@ -3,6 +3,7 @@
 #include <string>
 #include <vector>
 #include <memory>
+#include <chrono>
 
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
@@ -52,13 +53,16 @@ out vec4 light_direction;
 void main()
 {
 	int n = 0;
-	normal = vec4(0.0, 0.0, 1.0f, 0.0);
+    vec3 p0 = gl_in[0].gl_Position.xyz;
+    vec3 p1 = gl_in[1].gl_Position.xyz;
+    vec3 p2 = gl_in[2].gl_Position.xyz;
+    normal = vec4(normalize(cross(p1 - p0, p2 - p0)), 1.0);
 	for (n = 0; n < gl_in.length(); n++) {
 		light_direction = vs_light_direction[n];
 		gl_Position = projection * gl_in[n].gl_Position;
 		EmitVertex();
 	}
-	EndPrimitive();
+    EndPrimitive();
 }
 )zzz";
 
@@ -69,7 +73,7 @@ in vec4 light_direction;
 out vec4 fragment_color;
 void main()
 {
-	vec4 color = vec4(1.0, 0.0, 0.0, 1.0);
+	vec4 color = clamp(vec4(vec3(normal * normal), 1.0), 0.0, 1.0);
 	float dot_nl = dot(normalize(light_direction), normalize(normal));
 	dot_nl = clamp(dot_nl, 0.0, 1.0);
 	fragment_color = clamp(dot_nl * color, 0.0, 1.0);
@@ -89,9 +93,7 @@ void main()
 }
 )zzz";
 
-void
-CreateTriangle(std::vector<glm::vec4>& vertices,
-	std::vector<glm::uvec3>& indices) {
+void CreateTriangle(std::vector<glm::vec4>& vertices, std::vector<glm::uvec3>& indices) {
 	vertices.push_back(glm::vec4(-0.5f, -0.5f, -0.5f, 1.0f));
 	vertices.push_back(glm::vec4(0.5f, -0.5f, -0.5f, 1.0f));
 	vertices.push_back(glm::vec4(0.0f, 0.5f, -0.5f, 1.0f));
@@ -99,8 +101,7 @@ CreateTriangle(std::vector<glm::vec4>& vertices,
 }
 
 // FIXME: Save geometry to OBJ file
-void
-SaveObj(const std::string& file,
+void SaveObj(const std::string& file,
 	const std::vector<glm::vec4>& vertices,
 	const std::vector<glm::uvec3>& indices) {}
 
@@ -112,6 +113,22 @@ ErrorCallback(int error, const char* description) {
 std::shared_ptr<Menger> g_menger;
 Camera g_camera;
 
+auto g_lt = std::chrono::system_clock::now();
+
+enum class MovementDirection {
+    FORWARD = 1, BACKWARD = -1, NONE = 0
+};
+MovementDirection g_should_move = MovementDirection::NONE;
+enum class PanDirection {
+    P = 1, N = -1, NONE = 0
+};
+PanDirection g_should_pan_x = PanDirection::NONE;
+PanDirection g_should_pan_y = PanDirection::NONE;
+enum class RollDirection {
+    COUNTER = -1, CLOCK = 1, NONE = 0
+};
+RollDirection g_should_roll = RollDirection::NONE;
+
 void KeyCallback(GLFWwindow* window,
 	int key,
 	int scancode,
@@ -121,51 +138,122 @@ void KeyCallback(GLFWwindow* window,
 	// Note:
 	// This is only a list of functions to implement.
 	// you may want to re-organize this piece of code.
-	if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
+	if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS) {
 		glfwSetWindowShouldClose(window, GL_TRUE);
-	else if (key == GLFW_KEY_S && mods == GLFW_MOD_CONTROL && action == GLFW_RELEASE) {
+	} else if (key == GLFW_KEY_S && mods == GLFW_MOD_CONTROL && action == GLFW_RELEASE) {
 		// FIXME: save geometry to OBJ
-	} else if (key == GLFW_KEY_W && action != GLFW_RELEASE) {
-		// FIXME: WASD
-	} else if (key == GLFW_KEY_S && action != GLFW_RELEASE) {
-	} else if (key == GLFW_KEY_A && action != GLFW_RELEASE) {
-	} else if (key == GLFW_KEY_D && action != GLFW_RELEASE) {
-	} else if (key == GLFW_KEY_LEFT && action != GLFW_RELEASE) {
-		// FIXME: Left Right Up and Down
-	} else if (key == GLFW_KEY_RIGHT && action != GLFW_RELEASE) {
-	} else if (key == GLFW_KEY_DOWN && action != GLFW_RELEASE) {
-	} else if (key == GLFW_KEY_UP && action != GLFW_RELEASE) {
+	} else if (key == GLFW_KEY_W) { // move forwards
+        if (action == GLFW_RELEASE && g_should_move == MovementDirection::FORWARD) {
+            g_should_move = MovementDirection::NONE;
+        } else {
+    		g_should_move = MovementDirection::FORWARD;
+        }
+	} else if (key == GLFW_KEY_S) { // move backwards
+        if (action == GLFW_RELEASE && g_should_move == MovementDirection::BACKWARD) {
+            g_should_move = MovementDirection::NONE;
+        } else {
+            g_should_move = MovementDirection::BACKWARD;
+        }
+	} else if (key == GLFW_KEY_A) { // pan left
+        if (action == GLFW_RELEASE && g_should_pan_x == PanDirection::N) {
+            g_should_pan_x = PanDirection::NONE;
+        } else {
+            g_should_pan_x = PanDirection::N;
+        }
+	} else if (key == GLFW_KEY_D) { // pan right
+        if (action == GLFW_RELEASE && g_should_pan_x == PanDirection::P) {
+            g_should_pan_x = PanDirection::NONE;
+        } else {
+            g_should_pan_x = PanDirection::P;
+        }
+	} else if (key == GLFW_KEY_LEFT) { // roll counter
+        if (action == GLFW_RELEASE && g_should_roll == RollDirection::COUNTER) {
+            g_should_roll = RollDirection::NONE;
+        } else {
+            g_should_roll = RollDirection::COUNTER;
+        }
+	} else if (key == GLFW_KEY_RIGHT) { // roll clockwise
+        if (action == GLFW_RELEASE && g_should_roll == RollDirection::CLOCK) {
+            g_should_roll = RollDirection::NONE;
+        } else {
+            g_should_roll = RollDirection::CLOCK;
+        }
+	} else if (key == GLFW_KEY_DOWN) { // pan up
+        if (action == GLFW_RELEASE && g_should_pan_y == PanDirection::P) {
+            g_should_pan_y = PanDirection::NONE;
+        } else {
+            g_should_pan_y = PanDirection::P;
+        }
+	} else if (key == GLFW_KEY_UP) { // pan down
+        if (action == GLFW_RELEASE && g_should_pan_y == PanDirection::N) {
+            g_should_pan_y = PanDirection::NONE;
+        } else {
+            g_should_pan_y = PanDirection::N;
+        }
 	} else if (key == GLFW_KEY_C && action != GLFW_RELEASE) {
 		// FIXME: FPS mode on/off
 	}
 	if (!g_menger) return; // 0-4 only available in Menger mode.
 	if (key == GLFW_KEY_0 && action != GLFW_RELEASE) {
-		// FIXME: Change nesting level of g_menger
-		// Note: GLFW_KEY_0 - 4 may not be continuous.
+		g_menger->set_nesting_level(0);
 	} else if (key == GLFW_KEY_1 && action != GLFW_RELEASE) {
+        g_menger->set_nesting_level(1);
 	} else if (key == GLFW_KEY_2 && action != GLFW_RELEASE) {
+        g_menger->set_nesting_level(2);
 	} else if (key == GLFW_KEY_3 && action != GLFW_RELEASE) {
+        g_menger->set_nesting_level(3);
 	} else if (key == GLFW_KEY_4 && action != GLFW_RELEASE) {
+        g_menger->set_nesting_level(4);
 	}
 }
 
-int g_current_button;
-bool g_mouse_pressed;
+//mouse
+std::vector<int> g_buttons = std::vector<int>();
+int g_curr_button;
+bool g_mouse_pressed = false;
+bool g_mouse_init = false;
+int g_mouse_last_x;
+int g_mouse_last_y;
 
 void MousePosCallback(GLFWwindow* window, double mouse_x, double mouse_y) {
+    if (!g_mouse_init && g_mouse_pressed) {
+        g_mouse_last_x = mouse_x;
+        g_mouse_last_y = mouse_y;
+        g_mouse_init = true;
+    }
 	if (!g_mouse_pressed) return;
-	if (g_current_button == GLFW_MOUSE_BUTTON_LEFT) {
-		// FIXME: left drag
-	} else if (g_current_button == GLFW_MOUSE_BUTTON_RIGHT) {
-		// FIXME: middle drag
-	} else if (g_current_button == GLFW_MOUSE_BUTTON_MIDDLE) {
-		// FIXME: right drag
+    double dx = mouse_x - g_mouse_last_x;
+    double dy = mouse_y - g_mouse_last_y;
+	if (g_curr_button == GLFW_MOUSE_BUTTON_LEFT) {
+        g_camera.mouse_rot(dx, dy);
+	} else if (g_curr_button == GLFW_MOUSE_BUTTON_RIGHT) {
+        g_camera.mouse_zoom(dx, dy);
+	} else if (g_curr_button == GLFW_MOUSE_BUTTON_MIDDLE) {
+        g_camera.mouse_strafe(dx, dy);
 	}
+    g_mouse_last_x = mouse_x;
+    g_mouse_last_y = mouse_y;
 }
 
 void MouseButtonCallback(GLFWwindow* window, int button, int action, int mods) {
-	g_mouse_pressed = (action == GLFW_PRESS);
-	g_current_button = button;
+    if (action == GLFW_PRESS) {
+        g_curr_button = button;
+        g_mouse_pressed = true;
+        g_buttons.push_back(button);
+    } else {
+        for (auto it = g_buttons.begin(); it != g_buttons.end(); ++it) {
+            if (*it == button) {
+                g_buttons.erase(it);
+                break;
+            }
+        }
+        if (g_buttons.size() == 0) {
+            g_mouse_init = false;
+            g_mouse_pressed = false;
+        } else {
+            g_curr_button = g_buttons.back();
+        }
+    }
 }
 
 int main(int argc, char* argv[]) {
@@ -180,8 +268,7 @@ int main(int argc, char* argv[]) {
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 1);
 	glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
 	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-	GLFWwindow* window = glfwCreateWindow(window_width, window_height,
-		&window_title[0], nullptr, nullptr);
+	GLFWwindow* window = glfwCreateWindow(window_width, window_height, &window_title[0], nullptr, nullptr);
 	CHECK_SUCCESS(window != nullptr);
 	glfwMakeContextCurrent(window);
 	glewExperimental = GL_TRUE;
@@ -201,8 +288,7 @@ int main(int argc, char* argv[]) {
 	std::vector<glm::uvec3> obj_faces;
 
 	//FIXME: Create the geometry from a Menger object.
-	CreateTriangle(obj_vertices, obj_faces);
-
+    CreateTriangle(obj_vertices, obj_faces);
 	g_menger->set_nesting_level(1);
 
 	glm::vec4 min_bounds = glm::vec4(std::numeric_limits<float>::max());
@@ -310,9 +396,12 @@ int main(int argc, char* argv[]) {
 	GLint floor_view_matrix_location = 0;
 	GLint floor_light_position_location = 0;
 
+    int level = 0;
+
 	glm::vec4 light_position = glm::vec4(10.0f, 10.0f, 10.0f, 1.0f);
 	float aspect = 0.0f;
 	float theta = 0.0f;
+    g_lt = std::chrono::system_clock::now();
 	while (!glfwWindowShouldClose(window)) {
 		// Setup some basic window stuff.
 		glfwGetFramebufferSize(window, &window_width, &window_height);
@@ -326,10 +415,18 @@ int main(int argc, char* argv[]) {
 		CHECK_GL_ERROR(glBindVertexArray(g_array_objects[kGeometryVao]));
 
 		if (g_menger && g_menger->is_dirty()) {
-			g_menger->generate_geometry(obj_vertices, obj_faces);
+            g_menger->generate_geometry(obj_vertices, obj_faces);
 			g_menger->set_clean();
 
-			// FIXME: Upload your vertex data here.
+            // FIXME: Upload your vertex data here.
+
+            // Setup vertex data in a VBO.
+            // CHECK_GL_ERROR(glBindBuffer(GL_ARRAY_BUFFER, g_buffer_objects[kGeometryVao][kVertexBuffer]));
+            CHECK_GL_ERROR(glBufferData(GL_ARRAY_BUFFER, sizeof(float) * obj_vertices.size() * 4, obj_vertices.data(), GL_STATIC_DRAW));
+
+            // Setup element array buffer.
+            // CHECK_GL_ERROR(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, g_buffer_objects[kGeometryVao][kIndexBuffer]));
+            CHECK_GL_ERROR(glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(uint32_t) * obj_faces.size() * 3, obj_faces.data(), GL_STATIC_DRAW));
 		}
 
 		// Compute the projection matrix.
@@ -364,6 +461,25 @@ int main(int argc, char* argv[]) {
 
 		// Poll and swap.
 		glfwPollEvents();
+
+        // time delta smoothing
+        auto ct = std::chrono::system_clock::now();
+        double elapsed = (ct - g_lt).count();
+        g_lt = ct;
+        elapsed = 0.1;
+        if ((int) g_should_move) {
+            g_camera.move(elapsed, (int) g_should_move);
+        }
+        if ((int) g_should_roll) {
+            g_camera.roll(elapsed, (int) g_should_roll);
+        }
+        if ((int) g_should_pan_x) {
+            g_camera.pan_x(elapsed, (int) g_should_pan_x);
+        }
+        if ((int) g_should_pan_y) {
+            g_camera.pan_y(elapsed, (int) g_should_pan_y);
+        }
+
 		glfwSwapBuffers(window);
 	}
 	glfwDestroyWindow(window);
