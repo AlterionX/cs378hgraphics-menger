@@ -18,7 +18,7 @@ public:
     void pan_x(double dt, int dir);
     void pan_y(double dt, int dir);
 
-    void toggle_mode(ViewMode mode);
+    void toggle_mode();
 
 private:
     ViewMode mode = ViewMode::NORMAL;

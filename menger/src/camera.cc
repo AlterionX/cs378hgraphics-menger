@@ -31,7 +31,7 @@ void Camera::mouse_rot(double dx, double dy) {
     auto up = up_;
     auto right = glm::cross(forw, up_);
 
-    auto center = eye_ + camera_distance_ * forw;
+    auto center = this->mode == Camera::ViewMode::NORMAL ? eye_ : eye_ + camera_distance_ * forw;
 
     float yaw_ang = glm::atan(dx / camera_distance_) * rotation_speed;
     float pitch_ang = glm::atan(-dy / camera_distance_) * rotation_speed;
@@ -40,14 +40,14 @@ void Camera::mouse_rot(double dx, double dy) {
     yaw_rot_mat = glm::rotate(yaw_rot_mat, yaw_ang, up_);
     yaw_rot_mat = glm::translate(yaw_rot_mat, center);
 
-    eye_ = this->mode == Camera::ViewMode::NORMAL ? eye_ : glm::vec3(yaw_rot_mat * glm::vec4(eye_, 0.0f));
+    eye_ = glm::vec3(yaw_rot_mat * glm::vec4(eye_, 0.0f));
     look_ = glm::vec3(yaw_rot_mat * glm::vec4(look_, 0.0f));
 
     auto pitch_rot_mat = glm::translate(-center);
     pitch_rot_mat = glm::rotate(pitch_rot_mat, pitch_ang, right);
     pitch_rot_mat = glm::translate(pitch_rot_mat, center);
 
-    eye_ = this->mode == Camera::ViewMode::NORMAL ? eye_ : glm::vec3(pitch_rot_mat * glm::vec4(eye_, 0.0f));
+    eye_ = glm::vec3(pitch_rot_mat * glm::vec4(eye_, 0.0f));
     up_ = glm::vec3(pitch_rot_mat * glm::vec4(up_, 0.0f));
     look_ = glm::vec3(pitch_rot_mat * glm::vec4(look_, 0.0f));
 }
@@ -81,6 +81,6 @@ void Camera::pan_y(double dt, int dir) {
     eye_ += up_ * amount;
 }
 
-void Camera::toggle_mode(ViewMode mode) {
-    this->mode = mode;
+void Camera::toggle_mode() {
+    this->mode = (Camera::ViewMode)!(int)this->mode;
 }

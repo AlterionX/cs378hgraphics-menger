@@ -194,7 +194,7 @@ void KeyCallback(GLFWwindow* window,
             g_should_pan_y = PanDirection::N;
         }
 	} else if (key == GLFW_KEY_C && action != GLFW_RELEASE) {
-		// FIXME: FPS mode on/off
+		g_camera.toggle_mode();
 	}
 	if (!g_menger) return; // 0-4 only available in Menger mode.
 	if (key == GLFW_KEY_0 && action != GLFW_RELEASE) {
