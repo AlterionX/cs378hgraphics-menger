@@ -23,18 +23,7 @@ glm::mat4 Camera::get_view_matrix() const {
         glm::vec4(look, 0.0f),
         glm::vec4(eye_ * -1.0f, 1.0f)
     );
-    std::cout << "am" << std::endl;
-    std::cout << glm::to_string(am[0]) << std::endl;
-    std::cout << glm::to_string(am[1]) << std::endl;
-    std::cout << glm::to_string(am[2]) << std::endl;
-    std::cout << glm::to_string(am[3]) << std::endl;
-    std::cout << "proper" << std::endl;
-    auto at = glm::lookAt(eye_, eye_ + look_ * camera_distance_, up_);
-    std::cout << glm::to_string(at[0]) << std::endl;
-    std::cout << glm::to_string(at[1]) << std::endl;
-    std::cout << glm::to_string(at[2]) << std::endl;
-    std::cout << glm::to_string(at[3]) << std::endl;
-    return at;
+    return am;
 }
 
 void Camera::mouse_rot(double dx, double dy) {
@@ -51,14 +40,14 @@ void Camera::mouse_rot(double dx, double dy) {
     yaw_rot_mat = glm::rotate(yaw_rot_mat, yaw_ang, up_);
     yaw_rot_mat = glm::translate(yaw_rot_mat, center);
 
-    eye_ = glm::vec3(yaw_rot_mat * glm::vec4(eye_, 0.0f));
+    eye_ = glm::vec3(yaw_rot_mat * glm::vec4(eye_, 0.0f)) * (float) this->mode;
     look_ = glm::vec3(yaw_rot_mat * glm::vec4(look_, 0.0f));
 
     auto pitch_rot_mat = glm::translate(-center);
     pitch_rot_mat = glm::rotate(pitch_rot_mat, pitch_ang, right);
     pitch_rot_mat = glm::translate(pitch_rot_mat, center);
 
-    eye_ = glm::vec3(pitch_rot_mat * glm::vec4(eye_, 0.0f));
+    eye_ = glm::vec3(pitch_rot_mat * glm::vec4(eye_, 0.0f)) * (float) this->mode;
     up_ = glm::vec3(pitch_rot_mat * glm::vec4(up_, 0.0f));
     look_ = glm::vec3(pitch_rot_mat * glm::vec4(look_, 0.0f));
 }
