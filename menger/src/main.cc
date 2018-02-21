@@ -55,11 +55,11 @@ flat out vec4 normal;
 out vec4 light_direction;
 void main()
 {
-	int n = 0;
     vec3 p0 = gl_in[0].gl_Position.xyz;
     vec3 p1 = gl_in[1].gl_Position.xyz;
     vec3 p2 = gl_in[2].gl_Position.xyz;
     normal = vec4(normalize(cross(p1 - p0, p2 - p0)), 0.0);
+	int n = 0;
 	for (n = 0; n < gl_in.length(); n++) {
 		light_direction = vs_light_direction[n];
 		gl_Position = projection * gl_in[n].gl_Position;
@@ -194,7 +194,7 @@ void KeyCallback(GLFWwindow* window,
         } else if (action == GLFW_PRESS) {
             g_should_pan_y = PanDirection::N;
         }
-	} else if (key == GLFW_KEY_C && action != GLFW_RELEASE) {
+	} else if (key == GLFW_KEY_C && action == GLFW_PRESS) {
 		g_camera.toggle_mode();
 	}
 	if (!g_menger) return; // 0-4 only available in Menger mode.
@@ -228,8 +228,8 @@ void MousePosCallback(GLFWwindow* window, double mouse_x, double mouse_y) {
 	if (!g_mouse_pressed) return;
     double dx = mouse_x - g_mouse_last_x;
     double dy = mouse_y - g_mouse_last_y;
-    dx /= window_width;
-    dy /= window_height;
+    // dx /= window_width / 20.0;
+    // dy /= window_height / 20.0;
 	if (g_curr_button == GLFW_MOUSE_BUTTON_LEFT) {
         g_camera.mouse_rot(dx, dy);
 	} else if (g_curr_button == GLFW_MOUSE_BUTTON_RIGHT) {
