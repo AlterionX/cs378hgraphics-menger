@@ -15,15 +15,9 @@ namespace {
 // FIXME: Calculate the view matrix
 glm::mat4 Camera::get_view_matrix() const {
     auto look = look_ * -1.0f;
-    auto right = glm::cross(look, up_);
-    auto up = glm::cross(right, look);
-	auto am = glm::mat4(
-        glm::vec4(right, 0.0f),
-        glm::vec4(up, 0.0f),
-        glm::vec4(look, 0.0f),
-        glm::vec4(0.0f, 0.0f, 0.0f, 1.0f)
-    );
-    am = glm::translate(am, -1.0f * eye_);
+    auto right = glm::cross(look_, up_);
+    auto up = glm::cross(right, look_);
+	auto am = glm::translate(glm::mat4(glm::transpose(glm::mat3(right, up, look))), eye_ * -1.0f);
     return am;
 }
 
@@ -53,6 +47,9 @@ void Camera::mouse_rot(double dx, double dy) {
     pitch_rot_mat = glm::rotate(pitch_rot_mat, pitch_ang, right);
     pitch_rot_mat = glm::translate(pitch_rot_mat, center);
     eye_ = glm::vec3(pitch_rot_mat * glm::vec4(eye_, 1.0f));
+
+    look_ = glm::normalize(look_);
+    up_ = glm::normalize(up_);
 }
 void Camera::mouse_zoom(double dx, double dy) { // ignore x
     float diff = dy * zoom_speed;

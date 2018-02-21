@@ -56,9 +56,9 @@ out vec4 light_direction;
 void main()
 {
 	int n = 0;
-    vec3 p0 = g_old[0].xyz;
-    vec3 p1 = g_old[1].xyz;
-    vec3 p2 = g_old[2].xyz;
+    vec3 p0 = gl_in[0].gl_Position.xyz;
+    vec3 p1 = gl_in[1].gl_Position.xyz;
+    vec3 p2 = gl_in[2].gl_Position.xyz;
     normal = vec4(normalize(cross(p1 - p0, p2 - p0)), 0.0);
 	for (n = 0; n < gl_in.length(); n++) {
 		light_direction = vs_light_direction[n];
@@ -76,7 +76,8 @@ in vec4 light_direction;
 out vec4 fragment_color;
 void main()
 {
-	vec4 color = clamp(vec4(vec3(normal * normal), 1.0), 0.0, 1.0);
+	vec4 color = clamp(normal * normal, 0.0, 1.0);
+    color[3] = 1.0;
 	float dot_nl = dot(normalize(light_direction), normalize(normal));
 	dot_nl = clamp(dot_nl, 0.0, 1.0);
 	fragment_color = clamp(dot_nl * color, 0.0, 1.0);
@@ -227,6 +228,8 @@ void MousePosCallback(GLFWwindow* window, double mouse_x, double mouse_y) {
 	if (!g_mouse_pressed) return;
     double dx = mouse_x - g_mouse_last_x;
     double dy = mouse_y - g_mouse_last_y;
+    dx /= window_width;
+    dy /= window_height;
 	if (g_curr_button == GLFW_MOUSE_BUTTON_LEFT) {
         g_camera.mouse_rot(dx, dy);
 	} else if (g_curr_button == GLFW_MOUSE_BUTTON_RIGHT) {
