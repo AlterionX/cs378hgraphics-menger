@@ -35,8 +35,10 @@ in vec4 vertex_position;
 uniform mat4 view;
 uniform vec4 light_position;
 out vec4 vs_light_direction;
+out vec4 g_old;
 void main()
 {
+    g_old = vertex_position;
 	gl_Position = view * vertex_position;
 	vs_light_direction = -gl_Position + view * light_position;
 }
@@ -48,15 +50,16 @@ layout (triangles) in;
 layout (triangle_strip, max_vertices = 3) out;
 uniform mat4 projection;
 in vec4 vs_light_direction[];
+in vec4 g_old[];
 flat out vec4 normal;
 out vec4 light_direction;
 void main()
 {
 	int n = 0;
-    vec3 p0 = gl_in[0].gl_Position.xyz;
-    vec3 p1 = gl_in[1].gl_Position.xyz;
-    vec3 p2 = gl_in[2].gl_Position.xyz;
-    normal = vec4(normalize(cross(p1 - p0, p2 - p0)), 1.0);
+    vec3 p0 = g_old[0].xyz;
+    vec3 p1 = g_old[1].xyz;
+    vec3 p2 = g_old[2].xyz;
+    normal = vec4(normalize(cross(p1 - p0, p2 - p0)), 0.0);
 	for (n = 0; n < gl_in.length(); n++) {
 		light_direction = vs_light_direction[n];
 		gl_Position = projection * gl_in[n].gl_Position;
@@ -145,49 +148,49 @@ void KeyCallback(GLFWwindow* window,
 	} else if (key == GLFW_KEY_W) { // move forwards
         if (action == GLFW_RELEASE && g_should_move == MovementDirection::FORWARD) {
             g_should_move = MovementDirection::NONE;
-        } else {
+        } else if (action == GLFW_PRESS) {
     		g_should_move = MovementDirection::FORWARD;
         }
 	} else if (key == GLFW_KEY_S) { // move backwards
         if (action == GLFW_RELEASE && g_should_move == MovementDirection::BACKWARD) {
             g_should_move = MovementDirection::NONE;
-        } else {
+        } else if (action == GLFW_PRESS) {
             g_should_move = MovementDirection::BACKWARD;
         }
 	} else if (key == GLFW_KEY_A) { // pan left
         if (action == GLFW_RELEASE && g_should_pan_x == PanDirection::N) {
             g_should_pan_x = PanDirection::NONE;
-        } else {
+        } else if (action == GLFW_PRESS) {
             g_should_pan_x = PanDirection::N;
         }
 	} else if (key == GLFW_KEY_D) { // pan right
         if (action == GLFW_RELEASE && g_should_pan_x == PanDirection::P) {
             g_should_pan_x = PanDirection::NONE;
-        } else {
+        } else if (action == GLFW_PRESS) {
             g_should_pan_x = PanDirection::P;
         }
 	} else if (key == GLFW_KEY_LEFT) { // roll counter
         if (action == GLFW_RELEASE && g_should_roll == RollDirection::COUNTER) {
             g_should_roll = RollDirection::NONE;
-        } else {
+        } else if (action == GLFW_PRESS) {
             g_should_roll = RollDirection::COUNTER;
         }
 	} else if (key == GLFW_KEY_RIGHT) { // roll clockwise
         if (action == GLFW_RELEASE && g_should_roll == RollDirection::CLOCK) {
             g_should_roll = RollDirection::NONE;
-        } else {
+        } else if (action == GLFW_PRESS) {
             g_should_roll = RollDirection::CLOCK;
         }
 	} else if (key == GLFW_KEY_DOWN) { // pan up
         if (action == GLFW_RELEASE && g_should_pan_y == PanDirection::P) {
             g_should_pan_y = PanDirection::NONE;
-        } else {
+        } else if (action == GLFW_PRESS) {
             g_should_pan_y = PanDirection::P;
         }
 	} else if (key == GLFW_KEY_UP) { // pan down
         if (action == GLFW_RELEASE && g_should_pan_y == PanDirection::N) {
             g_should_pan_y = PanDirection::NONE;
-        } else {
+        } else if (action == GLFW_PRESS) {
             g_should_pan_y = PanDirection::N;
         }
 	} else if (key == GLFW_KEY_C && action != GLFW_RELEASE) {

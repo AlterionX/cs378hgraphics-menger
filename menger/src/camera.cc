@@ -14,13 +14,27 @@ namespace {
 
 // FIXME: Calculate the view matrix
 glm::mat4 Camera::get_view_matrix() const {
-    auto right = glm::cross(look_, up_);
-	return glm::mat4(
-        glm::vec4(right * glm::vec3(1.0f, 1.0f, -1.0f), 0.0f),
-        glm::vec4(up_ * glm::vec3(1.0f, 1.0f, -1.0f), 0.0f),
-        glm::vec4(look_ * glm::vec3(1.0f, 1.0f, -1.0f), 0.0f),
-        glm::vec4(eye_ * glm::vec3(1.0f, 1.0f, -1.0f), 1.0f)
+    auto look = look_ * -1.0f;
+    auto right = glm::cross(look, up_);
+    auto up = glm::cross(right, look);
+	auto am = glm::mat4(
+        glm::vec4(right, 0.0f),
+        glm::vec4(up, 0.0f),
+        glm::vec4(look, 0.0f),
+        glm::vec4(eye_ * -1.0f, 1.0f)
     );
+    std::cout << "am" << std::endl;
+    std::cout << glm::to_string(am[0]) << std::endl;
+    std::cout << glm::to_string(am[1]) << std::endl;
+    std::cout << glm::to_string(am[2]) << std::endl;
+    std::cout << glm::to_string(am[3]) << std::endl;
+    std::cout << "proper" << std::endl;
+    auto at = glm::lookAt(eye_, eye_ + look_ * camera_distance_, up_);
+    std::cout << glm::to_string(at[0]) << std::endl;
+    std::cout << glm::to_string(at[1]) << std::endl;
+    std::cout << glm::to_string(at[2]) << std::endl;
+    std::cout << glm::to_string(at[3]) << std::endl;
+    return at;
 }
 
 void Camera::mouse_rot(double dx, double dy) {
@@ -37,18 +51,19 @@ void Camera::mouse_rot(double dx, double dy) {
     yaw_rot_mat = glm::rotate(yaw_rot_mat, yaw_ang, up_);
     yaw_rot_mat = glm::translate(yaw_rot_mat, center);
 
+    eye_ = glm::vec3(yaw_rot_mat * glm::vec4(eye_, 0.0f));
     look_ = glm::vec3(yaw_rot_mat * glm::vec4(look_, 0.0f));
 
     auto pitch_rot_mat = glm::translate(-center);
     pitch_rot_mat = glm::rotate(pitch_rot_mat, pitch_ang, right);
     pitch_rot_mat = glm::translate(pitch_rot_mat, center);
 
+    eye_ = glm::vec3(pitch_rot_mat * glm::vec4(eye_, 0.0f));
     up_ = glm::vec3(pitch_rot_mat * glm::vec4(up_, 0.0f));
     look_ = glm::vec3(pitch_rot_mat * glm::vec4(look_, 0.0f));
 }
 void Camera::mouse_zoom(double dx, double dy) { // ignore x
     float diff = dy * zoom_speed;
-    eye_ += look_ * diff;
     if (camera_distance_ - diff > 0.1) {
         camera_distance_ -= diff;
     } else {
@@ -70,9 +85,9 @@ void Camera::roll(double dt, int dir) {
 }
 void Camera::pan_x(double dt, int dir) {
     float amount = pan_speed * dt * dir;
-    eye_ += glm::vec3(amount, 0.0f, 0.0f);
+    eye_ += glm::cross(look_, up_) * amount;
 }
 void Camera::pan_y(double dt, int dir) {
     float amount = pan_speed * dt * dir;
-    eye_ += glm::vec3(0.0f, amount, 0.0f);
+    eye_ += up_ * amount;
 }
