@@ -22,6 +22,8 @@ public:
 
     float get_fov(float deg);
 
+    void reset();
+
 private:
     ViewMode mode = ViewMode::NORMAL;
 	float camera_distance_ = 3.0;

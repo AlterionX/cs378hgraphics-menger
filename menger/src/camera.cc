@@ -86,5 +86,13 @@ void Camera::toggle_mode() {
 }
 
 float Camera::get_fov(float deg) {
-    return glm::radians(deg / camera_distance_ * 3.0f);
+    return glm::radians(deg / (camera_distance_ / 3.0f));
+}
+
+void Camera::reset() {
+    mode = ViewMode::NORMAL;
+	camera_distance_ = 3.0;
+	look_ = glm::vec3(0.0f, 0.0f, -1.0f);
+	up_ = glm::vec3(0.0f, 1.0, 0.0f);
+	eye_ = glm::vec3(0.0f, 0.0f, camera_distance_);
 }

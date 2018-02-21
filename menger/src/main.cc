@@ -52,12 +52,17 @@ uniform mat4 projection;
 in vec4 vs_light_direction[];
 in vec4 g_old[];
 flat out vec4 normal;
+flat out vec4 w_normal;
 out vec4 light_direction;
 void main()
 {
-    vec3 p0 = gl_in[0].gl_Position.xyz;
-    vec3 p1 = gl_in[1].gl_Position.xyz;
-    vec3 p2 = gl_in[2].gl_Position.xyz;
+    vec3 p0 = g_old[0].xyz;
+    vec3 p1 = g_old[1].xyz;
+    vec3 p2 = g_old[2].xyz;
+    w_normal = vec4(normalize(cross(p1 - p0, p2 - p0)), 0.0);
+    p0 = gl_in[0].gl_Position.xyz;
+    p1 = gl_in[1].gl_Position.xyz;
+    p2 = gl_in[2].gl_Position.xyz;
     normal = vec4(normalize(cross(p1 - p0, p2 - p0)), 0.0);
 	int n = 0;
 	for (n = 0; n < gl_in.length(); n++) {
@@ -72,11 +77,12 @@ void main()
 const char* fragment_shader =
 R"zzz(#version 330 core
 flat in vec4 normal;
+flat in vec4 w_normal;
 in vec4 light_direction;
 out vec4 fragment_color;
 void main()
 {
-	vec4 color = clamp(normal * normal, 0.0, 1.0);
+	vec4 color = clamp(w_normal * w_normal, 0.0, 1.0);
     color[3] = 1.0;
 	float dot_nl = dot(normalize(light_direction), normalize(normal));
 	dot_nl = clamp(dot_nl, 0.0, 1.0);
@@ -196,7 +202,9 @@ void KeyCallback(GLFWwindow* window,
         }
 	} else if (key == GLFW_KEY_C && action == GLFW_PRESS) {
 		g_camera.toggle_mode();
-	}
+	} else if (key == GLFW_KEY_R && action == GLFW_PRESS) {
+        g_camera.reset();
+    }
 	if (!g_menger) return; // 0-4 only available in Menger mode.
 	if (key == GLFW_KEY_0 && action != GLFW_RELEASE) {
 		g_menger->set_nesting_level(0);
