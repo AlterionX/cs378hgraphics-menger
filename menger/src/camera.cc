@@ -84,3 +84,7 @@ void Camera::pan_y(double dt, int dir) {
 void Camera::toggle_mode() {
     this->mode = (Camera::ViewMode)!(int)this->mode;
 }
+
+float Camera::get_fov(float deg) {
+    return glm::radians(deg / camera_distance_ * 3.0f);
+}

@@ -20,6 +20,8 @@ public:
 
     void toggle_mode();
 
+    float get_fov(float deg);
+
 private:
     ViewMode mode = ViewMode::NORMAL;
 	float camera_distance_ = 3.0;
