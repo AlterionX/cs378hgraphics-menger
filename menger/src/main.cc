@@ -308,15 +308,15 @@ int main(int argc, char* argv[]) {
 	g_menger->generate_geometry(obj_vertices, obj_faces);
 	g_menger->set_clean();
 
-	float L=-5.0f, R=5.0f;
+	float L=-100.0f, R=100.0f;
 	std::vector<glm::vec4> floor_vertices;
 	std::vector<glm::uvec3> floor_faces;
-	floor_vertices.push_back(glm::vec4(-5.0f, -2.0f, -5.0f, 1.0f));
-	floor_vertices.push_back(glm::vec4(5.0f, -2.0f, -5.0f, 1.0f));
-	floor_vertices.push_back(glm::vec4(-5.0f, -2.0f, 5.0f, 1.0f));
-	floor_vertices.push_back(glm::vec4(5.0f, -2.0f, 5.0f, 1.0f));
-	floor_faces.push_back(glm::uvec3(0, 1, 2));
-	floor_faces.push_back(glm::uvec3(3, 2, 1));
+	floor_vertices.push_back(glm::vec4(L, -2.0f, L, 1.0f));
+	floor_vertices.push_back(glm::vec4(R, -2.0f, L, 1.0f));
+	floor_vertices.push_back(glm::vec4(L, -2.0f, R, 1.0f));
+	floor_vertices.push_back(glm::vec4(R, -2.0f, R, 1.0f));
+	floor_faces.push_back(glm::uvec3(0, 2, 1));
+	floor_faces.push_back(glm::uvec3(3, 1, 2));
 
 	// floor_vertices.push_back(glm::vec4(R, -2.0f, L, 1.0f));
 	// floor_vertices.push_back(glm::vec4(L, -2.0f, R, 1.0f));
@@ -336,7 +336,7 @@ int main(int argc, char* argv[]) {
 	std::cout << "max_bounds = " << glm::to_string(max_bounds) << "\n";
 
 	// Setup our VAO array.
-	CHECK_GL_ERROR(glGenVertexArrays(kNumVaos, &g_array_objects[0]));
+	CHECK_GL_ERROR(glGenVertexArrays(kNumVaos, &g_array_objects[kGeometryVao]));
 
 	// Switch to the VAO for Geometry.
 	CHECK_GL_ERROR(glBindVertexArray(g_array_objects[kGeometryVao]));
@@ -367,6 +367,7 @@ int main(int argc, char* argv[]) {
 	 // FIXME: load the floor into g_buffer_objects[kFloorVao][*],
 	 //        and bind these VBO to g_array_objects[kFloorVao]
 
+	CHECK_GL_ERROR(glGenVertexArrays(kNumVaos, &g_array_objects[kFloorVao]));
 	// Switch to the VAO for Floor.
 	CHECK_GL_ERROR(glBindVertexArray(g_array_objects[kFloorVao]));
 
@@ -459,7 +460,7 @@ int main(int argc, char* argv[]) {
 	CHECK_GL_ERROR(glAttachShader(floor_program_id, floor_fragment_shader_id));
 	CHECK_GL_ERROR(glAttachShader(floor_program_id, geometry_shader_id));
 	CHECK_GL_ERROR(glBindBuffer(GL_ARRAY_BUFFER, g_buffer_objects[kFloorVao][kVertexBuffer]));
-	// CHECK_GL_ERROR(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, g_buffer_objects[kFloorVao][kIndexBuffer]));
+	CHECK_GL_ERROR(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, g_buffer_objects[kFloorVao][kIndexBuffer]));
 	CHECK_GL_ERROR(glBindAttribLocation(floor_program_id, 0, "vertex_position"));
 	CHECK_GL_ERROR(glBindFragDataLocation(floor_program_id, 0, "fragment_color"));
 	glLinkProgram(floor_program_id);
@@ -490,9 +491,12 @@ int main(int argc, char* argv[]) {
 		CHECK_GL_ERROR(glBindVertexArray(g_array_objects[kGeometryVao]));
 
 		if (g_menger && g_menger->is_dirty()) {
+			std::cout << "regenerating menger" << std::endl;
+
             g_menger->generate_geometry(obj_vertices, obj_faces);
 			g_menger->set_clean();
 
+			CHECK_GL_ERROR(glBindVertexArray(g_array_objects[kFloorVao]));
             // FIXME: Upload your vertex data here.
 
             // Setup vertex data in a VBO.
