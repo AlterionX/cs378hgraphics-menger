@@ -491,12 +491,12 @@ int main(int argc, char* argv[]) {
 		CHECK_GL_ERROR(glBindVertexArray(g_array_objects[kGeometryVao]));
 
 		if (g_menger && g_menger->is_dirty()) {
-			std::cout << "regenerating menger" << std::endl;
 
             g_menger->generate_geometry(obj_vertices, obj_faces);
 			g_menger->set_clean();
 
-			CHECK_GL_ERROR(glBindVertexArray(g_array_objects[kFloorVao]));
+			CHECK_GL_ERROR(glBindBuffer(GL_ARRAY_BUFFER, g_buffer_objects[kGeometryVao][kVertexBuffer]));
+			CHECK_GL_ERROR(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, g_buffer_objects[kGeometryVao][kIndexBuffer]));
             // FIXME: Upload your vertex data here.
 
             // Setup vertex data in a VBO.
