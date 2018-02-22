@@ -304,19 +304,22 @@ int main(int argc, char* argv[]) {
 	std::vector<glm::vec4> obj_vertices;
 	std::vector<glm::uvec3> obj_faces;
 
-	g_menger->set_nesting_level(1);
+	g_menger->set_nesting_level(2);
 	g_menger->generate_geometry(obj_vertices, obj_faces);
 	g_menger->set_clean();
 
 	float L=-2000.0f, R=2000.0f;
 	std::vector<glm::vec4> floor_vertices;
 	std::vector<glm::uvec3> floor_faces;
-	floor_vertices.push_back(glm::vec4(L, -2.0f, L, 1.0f));
-	floor_vertices.push_back(glm::vec4(R, -2.0f, L, 1.0f));
-	floor_vertices.push_back(glm::vec4(L, -2.0f, R, 1.0f));
-	floor_vertices.push_back(glm::vec4(R, -2.0f, R, 1.0f));
-	floor_faces.push_back(glm::uvec3(0, 2, 1));
-	floor_faces.push_back(glm::uvec3(3, 1, 2));
+	floor_vertices.push_back(glm::vec4(0.0f, -2.0f, 0.0f, 1.0f));
+	floor_vertices.push_back(glm::vec4(L, -2.0f, L, 0.0f));
+	floor_vertices.push_back(glm::vec4(L, -2.0f, R, 0.0f));
+	floor_vertices.push_back(glm::vec4(R, -2.0f, R, 0.0f));
+	floor_vertices.push_back(glm::vec4(R, -2.0f, L, 0.0f));
+	floor_faces.push_back(glm::uvec3(0, 1, 2));
+	floor_faces.push_back(glm::uvec3(0, 2, 3));
+	floor_faces.push_back(glm::uvec3(0, 3, 4));
+	floor_faces.push_back(glm::uvec3(0, 4, 1));
 
 	// floor_vertices.push_back(glm::vec4(R, -2.0f, L, 1.0f));
 	// floor_vertices.push_back(glm::vec4(L, -2.0f, R, 1.0f));
