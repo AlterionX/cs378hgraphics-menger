@@ -120,7 +120,15 @@ void CreateTriangle(std::vector<glm::vec4>& vertices, std::vector<glm::uvec3>& i
 // FIXME: Save geometry to OBJ file
 void SaveObj(const std::string& file,
 	const std::vector<glm::vec4>& vertices,
-	const std::vector<glm::uvec3>& indices) {}
+	const std::vector<glm::uvec3>& indices) {
+
+	std::ofstream fout;
+	fout.open(file);
+	for(const auto& v: vertices)
+		fout << "v " << v[0] << " " << v[1] << " " << v[2] << std::endl;
+	for(const auto& f: indices)
+		fout << "f " << (1+f[0]) << " " << (1+f[1]) << " " << (1+f[2]) << std::endl;
+}
 
 void
 ErrorCallback(int error, const char* description) {
@@ -158,14 +166,18 @@ void KeyCallback(GLFWwindow* window,
 	if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS) {
 		glfwSetWindowShouldClose(window, GL_TRUE);
 	} else if (key == GLFW_KEY_S && mods == GLFW_MOD_CONTROL && action == GLFW_RELEASE) {
-		// FIXME: save geometry to OBJ
+		std::vector<glm::vec4> obj_vertices;
+		std::vector<glm::uvec3> obj_faces;
+        g_menger->generate_geometry(obj_vertices, obj_faces);
+		SaveObj(std::string("geometry.obj"), obj_vertices, obj_faces);
+		std::cout << "saved model to geometry.obj" << std::endl;
 	} else if (key == GLFW_KEY_W) { // move forwards
         if (action == GLFW_RELEASE && g_should_move == MovementDirection::FORWARD) {
             g_should_move = MovementDirection::NONE;
         } else {
     		g_should_move = MovementDirection::FORWARD;
         }
-	} else if (key == GLFW_KEY_S) { // move backwards
+	} else if (key == GLFW_KEY_S && mods != GLFW_MOD_CONTROL) { // move backwards
         if (action == GLFW_RELEASE && g_should_move == MovementDirection::BACKWARD) {
             g_should_move = MovementDirection::NONE;
         } else {
