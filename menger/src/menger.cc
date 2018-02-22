@@ -29,8 +29,8 @@ static const std::vector<glm::uvec3> bc_fs = std::vector<glm::uvec3>({
     glm::uvec3(7, 0, 1), // rb
     glm::uvec3(7, 4, 0), // top t
     glm::uvec3(3, 0, 4), // tb
-    glm::uvec3(1, 6, 2), // bottom t
-    glm::uvec3(5, 2, 6) // bb
+    glm::uvec3(1, 2, 6), // bottom t
+    glm::uvec3(5, 6, 2) // bb
 });
 static constexpr float scale = 1.0f / 3.0f;
 // Center of the top right out sub box

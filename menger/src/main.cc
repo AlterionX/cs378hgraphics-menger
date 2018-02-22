@@ -84,7 +84,7 @@ in vec4 light_direction;
 out vec4 fragment_color;
 void main()
 {
-	vec4 color = clamp(vec4(vec3(world_normal * world_normal), 1.0), 0.0, 1.0);
+	vec4 color = clamp(world_normal * world_normal, 0.0, 1.0);
 	float dot_nl = dot(normalize(light_direction), normalize(normal));
 	dot_nl = clamp(dot_nl, 0.0, 1.0);
 	fragment_color = clamp(dot_nl * color, 0.0, 1.0);
@@ -308,7 +308,7 @@ int main(int argc, char* argv[]) {
 	g_menger->generate_geometry(obj_vertices, obj_faces);
 	g_menger->set_clean();
 
-	float L=-100.0f, R=100.0f;
+	float L=-2000.0f, R=2000.0f;
 	std::vector<glm::vec4> floor_vertices;
 	std::vector<glm::uvec3> floor_faces;
 	floor_vertices.push_back(glm::vec4(L, -2.0f, L, 1.0f));
@@ -421,8 +421,8 @@ int main(int argc, char* argv[]) {
 	CHECK_GL_ERROR(glAttachShader(program_id, geometry_shader_id));
 
 	// Bind attributes.
-	CHECK_GL_ERROR(glBindBuffer(GL_ARRAY_BUFFER, g_buffer_objects[kGeometryVao][kVertexBuffer]));
-	CHECK_GL_ERROR(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, g_buffer_objects[kGeometryVao][kIndexBuffer]));
+	// CHECK_GL_ERROR(glBindBuffer(GL_ARRAY_BUFFER, g_buffer_objects[kGeometryVao][kVertexBuffer]));
+	// CHECK_GL_ERROR(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, g_buffer_objects[kGeometryVao][kIndexBuffer]));
 	CHECK_GL_ERROR(glBindAttribLocation(program_id, 0, "vertex_position"));
 	CHECK_GL_ERROR(glBindFragDataLocation(program_id, 0, "fragment_color"));
 	glLinkProgram(program_id);
@@ -459,8 +459,8 @@ int main(int argc, char* argv[]) {
 	CHECK_GL_ERROR(glAttachShader(floor_program_id, vertex_shader_id));
 	CHECK_GL_ERROR(glAttachShader(floor_program_id, floor_fragment_shader_id));
 	CHECK_GL_ERROR(glAttachShader(floor_program_id, geometry_shader_id));
-	CHECK_GL_ERROR(glBindBuffer(GL_ARRAY_BUFFER, g_buffer_objects[kFloorVao][kVertexBuffer]));
-	CHECK_GL_ERROR(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, g_buffer_objects[kFloorVao][kIndexBuffer]));
+	// CHECK_GL_ERROR(glBindBuffer(GL_ARRAY_BUFFER, g_buffer_objects[kFloorVao][kVertexBuffer]));
+	// CHECK_GL_ERROR(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, g_buffer_objects[kFloorVao][kIndexBuffer]));
 	CHECK_GL_ERROR(glBindAttribLocation(floor_program_id, 0, "vertex_position"));
 	CHECK_GL_ERROR(glBindFragDataLocation(floor_program_id, 0, "fragment_color"));
 	glLinkProgram(floor_program_id);
