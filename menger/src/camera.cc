@@ -12,48 +12,51 @@ namespace {
     float zoom_speed = 0.1f;
 };
 
+void Camera::change_mode(void) {
+    mode =(ViewMode)((int)mode ^ 1);
+}
+
 // FIXME: Calculate the view matrix
 glm::mat4 Camera::get_view_matrix() const {
     auto right = glm::normalize(glm::cross(look_, up_));
     auto true_up = glm::normalize(glm::cross(right, look_));
-    return glm::inverse(glm::mat4(
-        glm::vec4(right * glm::vec3(1.0f, 1.0f, -1.0f), 0.0f),
-        glm::vec4(true_up * glm::vec3(1.0f, 1.0f, -1.0f), 0.0f),
-        glm::vec4(look_ * glm::vec3(1.0f, 1.0f, -1.0f), 0.0f),
-        glm::vec4(eye_ * glm::vec3(1.0f, 1.0f, -1.0f), 1.0f)
-    ));
+    return glm::translate(glm::mat4(glm::transpose(glm::mat3(right, true_up, -look_))), eye_*-1.0f);
 }
 
 void Camera::mouse_rot(double dx, double dy) {
+    auto forw = look_;
     auto up = up_;
-    auto right = glm::cross(look_, up_);
+    auto right = glm::cross(forw, up_);
 
-    auto center = eye_ + camera_distance_ * look_;
+    bool is_fps = this->mode == (ViewMode::FPS);
+    auto center = is_fps ? eye_ : (eye_ + camera_distance_ * forw);
 
     float yaw_ang = glm::atan(dx / camera_distance_) * rotation_speed;
-    float pitch_ang = glm::atan(dy / camera_distance_) * rotation_speed;
+    float pitch_ang = glm::atan(-dy / camera_distance_) * rotation_speed;
 
     auto yaw_rot_mat = glm::translate(-center);
     yaw_rot_mat = glm::rotate(yaw_rot_mat, yaw_ang, up_);
     yaw_rot_mat = glm::translate(yaw_rot_mat, center);
-
-    look_ = glm::normalize(glm::vec3(yaw_rot_mat * glm::vec4(look_, 0.0f)));
+    if(!is_fps) eye_ = glm::vec3(yaw_rot_mat * glm::vec4(eye_, 1.0f));
+    look_ = glm::vec3(yaw_rot_mat * glm::vec4(look_, 0.0f));
 
     auto pitch_rot_mat = glm::translate(-center);
     pitch_rot_mat = glm::rotate(pitch_rot_mat, pitch_ang, right);
     pitch_rot_mat = glm::translate(pitch_rot_mat, center);
+    if(!is_fps) eye_ = glm::vec3(pitch_rot_mat * glm::vec4(eye_, 1.0f));
 
-    up_ = glm::vec3(pitch_rot_mat * glm::vec4(up_, 0.0f)); // commented for REAL fps, TODO: limit the up angle
-    look_ = glm::normalize(glm::vec3(pitch_rot_mat * glm::vec4(look_, 0.0f)));
+    up_ = glm::vec3(pitch_rot_mat * glm::vec4(up_, 0.0f));
+    look_ = glm::vec3(pitch_rot_mat * glm::vec4(look_, 0.0f));
+    look_ = glm::normalize(look_);
+up_ = glm::normalize(up_);
 }
 void Camera::mouse_zoom(double dx, double dy) { // ignore x
     float diff = dy * zoom_speed;
-    eye_ += look_ * diff;
-    // if (camera_distance_ - diff > 0.1) {
-        camera_distance_ -= diff;
-    // } else {
-    //     camera_distance_ = 0.1;
-    // }
+    if (camera_distance_ + diff > 0.1) {
+        camera_distance_ += diff;
+    } else {
+        camera_distance_ = 0.1;
+}
 }
 void Camera::mouse_strafe(double dx, double dy) {
     //do nothing, for now.
@@ -61,7 +64,7 @@ void Camera::mouse_strafe(double dx, double dy) {
 
 void Camera::move(double dt, int dir) {
     float amount = zoom_speed * dt * dir;
-    eye_ -= amount * look_;
+    eye_ += amount * look_;
 }
 void Camera::roll(double dt, int dir) {
     float roll_ang = roll_speed * dt * dir;
@@ -75,4 +78,8 @@ void Camera::pan_x(double dt, int dir) {
 void Camera::pan_y(double dt, int dir) {
     float amount = pan_speed * dt * dir;
     eye_ += up_ * amount;
+}
+
+float Camera::get_fov(float deg) {
+    return glm::clamp(deg / 180.0f * camera_distance_ / 3.0f * 3.14159265359f, 0.0f, 3.1413f);
 }

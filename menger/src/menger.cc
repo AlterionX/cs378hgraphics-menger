@@ -65,8 +65,8 @@ Menger::Menger() {
 Menger::~Menger() {}
 
 void Menger::set_nesting_level(int level) {
-    if (nesting_level_ != level) {
-    	nesting_level_ = level;
+    if (nesting_level_ != level + 1) {
+    	nesting_level_ = level + 1;
     	dirty_ = true;
     }
 }

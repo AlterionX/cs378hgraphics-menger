@@ -16,11 +16,16 @@ public:
     void pan_x(double dt, int dir);
     void pan_y(double dt, int dir);
 
+    void change_mode(void);
+    float get_fov(float deg);
+
 private:
+	enum class ViewMode {FPS, NORMAL};
+	ViewMode mode = ViewMode::NORMAL;
 	float camera_distance_ = 3.0;
 	glm::vec3 look_ = glm::vec3(0.0f, 0.0f, -1.0f);
 	glm::vec3 up_ = glm::vec3(0.0f, 1.0, 0.0f);
-	glm::vec3 eye_ = glm::vec3(0.0f, 0.0f, -camera_distance_);
+	glm::vec3 eye_ = glm::vec3(0.0f, 0.0f, camera_distance_);
 	// Note: you may need additional member variables
 };
 

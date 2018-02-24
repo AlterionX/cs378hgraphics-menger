@@ -137,6 +137,8 @@ ErrorCallback(int error, const char* description) {
 
 std::shared_ptr<Menger> g_menger;
 Camera g_camera;
+bool smooth_ctrl = false;
+float ELAPSED = 1.0;
 
 auto g_lt = std::chrono::system_clock::now();
 
@@ -174,53 +176,61 @@ void KeyCallback(GLFWwindow* window,
 	} else if (key == GLFW_KEY_W) { // move forwards
         if (action == GLFW_RELEASE && g_should_move == MovementDirection::FORWARD) {
             g_should_move = MovementDirection::NONE;
-        } else {
+        } else if (action == GLFW_PRESS) {
     		g_should_move = MovementDirection::FORWARD;
+    		if(!smooth_ctrl) g_camera.move(ELAPSED, (int) g_should_move);
         }
 	} else if (key == GLFW_KEY_S && mods != GLFW_MOD_CONTROL) { // move backwards
         if (action == GLFW_RELEASE && g_should_move == MovementDirection::BACKWARD) {
             g_should_move = MovementDirection::NONE;
-        } else {
+        } else if (action == GLFW_PRESS) {
             g_should_move = MovementDirection::BACKWARD;
+    		if(!smooth_ctrl) g_camera.move(ELAPSED, (int) g_should_move);
         }
 	} else if (key == GLFW_KEY_A) { // pan left
         if (action == GLFW_RELEASE && g_should_pan_x == PanDirection::N) {
             g_should_pan_x = PanDirection::NONE;
-        } else {
+        } else if (action == GLFW_PRESS) {
             g_should_pan_x = PanDirection::N;
+	        if(!smooth_ctrl) g_camera.pan_x(ELAPSED, (int) g_should_pan_x);
         }
 	} else if (key == GLFW_KEY_D) { // pan right
         if (action == GLFW_RELEASE && g_should_pan_x == PanDirection::P) {
             g_should_pan_x = PanDirection::NONE;
-        } else {
+        } else if (action == GLFW_PRESS) {
             g_should_pan_x = PanDirection::P;
+	        if(!smooth_ctrl) g_camera.pan_x(ELAPSED, (int) g_should_pan_x);
         }
 	} else if (key == GLFW_KEY_LEFT) { // roll counter
         if (action == GLFW_RELEASE && g_should_roll == RollDirection::COUNTER) {
             g_should_roll = RollDirection::NONE;
-        } else {
+        } else if (action == GLFW_PRESS) {
             g_should_roll = RollDirection::COUNTER;
+	        if(!smooth_ctrl) g_camera.roll(ELAPSED, (int) g_should_roll);
         }
 	} else if (key == GLFW_KEY_RIGHT) { // roll clockwise
         if (action == GLFW_RELEASE && g_should_roll == RollDirection::CLOCK) {
             g_should_roll = RollDirection::NONE;
-        } else {
+        } else if (action == GLFW_PRESS) {
             g_should_roll = RollDirection::CLOCK;
+	        if(!smooth_ctrl) g_camera.roll(ELAPSED, (int) g_should_roll);
         }
 	} else if (key == GLFW_KEY_DOWN) { // pan up
         if (action == GLFW_RELEASE && g_should_pan_y == PanDirection::P) {
             g_should_pan_y = PanDirection::NONE;
-        } else {
+        } else if (action == GLFW_PRESS) {
             g_should_pan_y = PanDirection::P;
+	        if(!smooth_ctrl) g_camera.pan_y(ELAPSED, (int) g_should_pan_y);
         }
 	} else if (key == GLFW_KEY_UP) { // pan down
         if (action == GLFW_RELEASE && g_should_pan_y == PanDirection::N) {
             g_should_pan_y = PanDirection::NONE;
-        } else {
+        } else if (action == GLFW_PRESS) {
             g_should_pan_y = PanDirection::N;
+	        if(!smooth_ctrl) g_camera.pan_y(ELAPSED, (int) g_should_pan_y);
         }
-	} else if (key == GLFW_KEY_C && action != GLFW_RELEASE) {
-		// FIXME: FPS mode on/off
+	} else if (key == GLFW_KEY_C && action == GLFW_PRESS) {
+		g_camera.change_mode();
 	}
 	if (!g_menger) return; // 0-4 only available in Menger mode.
 	if (key == GLFW_KEY_0 && action != GLFW_RELEASE) {
@@ -286,6 +296,9 @@ void MouseButtonCallback(GLFWwindow* window, int button, int action, int mods) {
 }
 
 int main(int argc, char* argv[]) {
+	if(argc > 1 && argv[1][0] == '-' && argv[1][1] == 's')
+		smooth_ctrl = true;
+
 	std::string window_title = "Menger";
 	if (!glfwInit()) exit(EXIT_FAILURE);
 	g_menger = std::make_shared<Menger>();
@@ -316,7 +329,7 @@ int main(int argc, char* argv[]) {
 	std::vector<glm::vec4> obj_vertices;
 	std::vector<glm::uvec3> obj_faces;
 
-	g_menger->set_nesting_level(2);
+	g_menger->set_nesting_level(1);
 	g_menger->generate_geometry(obj_vertices, obj_faces);
 	g_menger->set_clean();
 
@@ -526,7 +539,7 @@ int main(int argc, char* argv[]) {
 		// Compute the projection matrix.
 		aspect = static_cast<float>(window_width) / window_height;
 		glm::mat4 projection_matrix =
-			glm::perspective(glm::radians(45.0f), aspect, 0.0001f, 1000.0f);
+			glm::perspectiveFov(g_camera.get_fov(45.0f), (float) window_width, (float) window_height, 0.0001f, 1000.0f);
 
 		// Compute the view matrix
 		// FIXME: change eye and center through mouse/keyboard events.
@@ -566,23 +579,25 @@ int main(int argc, char* argv[]) {
 		// Poll and swap.
 		glfwPollEvents();
 
-        // time delta smoothing
-        auto ct = std::chrono::system_clock::now();
-        double elapsed = (ct - g_lt).count();
-        g_lt = ct;
-        elapsed = 0.1;
-        if ((int) g_should_move) {
-            g_camera.move(elapsed, (int) g_should_move);
-        }
-        if ((int) g_should_roll) {
-            g_camera.roll(elapsed, (int) g_should_roll);
-        }
-        if ((int) g_should_pan_x) {
-            g_camera.pan_x(elapsed, (int) g_should_pan_x);
-        }
-        if ((int) g_should_pan_y) {
-            g_camera.pan_y(elapsed, (int) g_should_pan_y);
-        }
+		if (smooth_ctrl) {
+			// time delta smoothing
+	        auto ct = std::chrono::system_clock::now();
+	        double elapsed = (ct - g_lt).count();
+	        g_lt = ct;
+	        elapsed = 0.1;
+	        if ((int) g_should_move) {
+	            g_camera.move(elapsed, (int) g_should_move);
+	        }
+	        if ((int) g_should_roll) {
+	            g_camera.roll(elapsed, (int) g_should_roll);
+	        }
+	        if ((int) g_should_pan_x) {
+	            g_camera.pan_x(elapsed, (int) g_should_pan_x);
+	        }
+	        if ((int) g_should_pan_y) {
+	            g_camera.pan_y(elapsed, (int) g_should_pan_y);
+	        }
+		}
 
 		glfwSwapBuffers(window);
 	}
