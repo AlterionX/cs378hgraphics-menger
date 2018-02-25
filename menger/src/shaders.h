@@ -41,8 +41,8 @@ void main()
 
 /*** triangle ***/
 
-float tcs_in_deg = 1.0;
-float tcs_out_deg = 1.0;
+float tcs_in_deg = 4.0;
+float tcs_out_deg = 4.0;
 const char* t_ctrl_shader =
 R"zzz(#version 430 core
 layout (vertices = 3) out;
@@ -80,8 +80,8 @@ void main(void){ // TODO: check order of vertices
 /*** quadrangle ***/
 
 const char* quad_t_ctrl_shader =
-R"zzz(#version 330 core
-layout (quads, max_vertices = 4) out;
+R"zzz(#version 430 core
+layout (vertices = 4) out;
 uniform float tcs_in_deg;
 uniform float tcs_out_deg;
 void main(void){
@@ -134,7 +134,7 @@ flat out vec4 world_normal;
 out vec4 light_direction;
 out vec4 world_position;
 
-// out vec4 color_v;
+out vec4 color_v;
 void main()
 {
 	int n = 0;
@@ -150,12 +150,12 @@ void main()
 		light_direction = vs_light_direction[n];
 		gl_Position = projection * gl_in[n].gl_Position;
 		world_position = vs_world_position[n];
-		// if(n == 0)
-		// 	color_v = vec4(1.0, 0.0, 0.0, 1.0);
-		// if(n == 1)
-		// 	color_v = vec4(0.0, 1.0, 0.0, 1.0);
-		// if(n == 2)
-		// 	color_v = vec4(0.0, 0.0, 1.0, 1.0);
+		if(n == 0)
+			color_v = vec4(1.0, 0.0, 0.0, 1.0);
+		if(n == 1)
+			color_v = vec4(0.0, 1.0, 0.0, 1.0);
+		if(n == 2)
+			color_v = vec4(0.0, 0.0, 1.0, 1.0);
 		EmitVertex();
 	}
     EndPrimitive();
@@ -189,7 +189,7 @@ in vec4 light_direction;
 in vec4 world_position;
 out vec4 fragment_color;
 
-// in vec4 color_v;
+in vec4 color_v;
 void main()
 {
 	vec4 color = vec4(1.0, 1.0, 1.0, 1.0);

@@ -23,7 +23,7 @@ int window_width = 800, window_height = 600;
 enum { kVertexBuffer, kIndexBuffer, kNumVbos };
 
 // These are our VAOs.
-enum { kGeometryVao, kFloorVao, kNumVaos };
+enum { kGeometryVao, kFloorVao, kOceanVao, kNumVaos };
 
 GLuint g_array_objects[kNumVaos];  // This will store the VAO descriptors.
 GLuint g_buffer_objects[kNumVaos][kNumVbos];  // These will store VBO descriptors.
@@ -36,6 +36,51 @@ void CreateTriangle(std::vector<glm::vec4>& vertices, std::vector<glm::uvec3>& i
 	vertices.push_back(glm::vec4(0.5f, -0.5f, -0.5f, 1.0f));
 	vertices.push_back(glm::vec4(0.0f, 0.5f, -0.5f, 1.0f));
 	indices.push_back(glm::uvec3(0, 1, 2));
+}
+
+void getFloor(std::vector<glm::vec4>& vertices, std::vector<glm::uvec3>& indices, int mode) {
+	float L=-10.0f, R=10.0f;
+	if(mode == 0) {
+		// infinite floor
+		vertices.push_back(glm::vec4(0.0f, -2.0f, 0.0f, 1.0f));
+		vertices.push_back(glm::vec4(L, -2.0f, L, 0.0f));
+		vertices.push_back(glm::vec4(L, -2.0f, R, 0.0f));
+		vertices.push_back(glm::vec4(R, -2.0f, R, 0.0f));
+		vertices.push_back(glm::vec4(R, -2.0f, L, 0.0f));
+		indices.push_back(glm::uvec3(0, 1, 2));
+		indices.push_back(glm::uvec3(0, 2, 3));
+		indices.push_back(glm::uvec3(0, 3, 4));
+		indices.push_back(glm::uvec3(0, 4, 1));
+	} else if(mode == 1) {
+		// two triangles
+		vertices.push_back(glm::vec4(L, -2.0f, L, 1.0f));
+		vertices.push_back(glm::vec4(L, -2.0f, R, 1.0f));
+		vertices.push_back(glm::vec4(R, -2.0f, R, 1.0f));
+		vertices.push_back(glm::vec4(R, -2.0f, L, 1.0f));
+		indices.push_back(glm::uvec3(3, 0, 1));
+		indices.push_back(glm::uvec3(1, 2, 3));	
+	}
+}
+
+void getFloorQuad(std::vector<glm::vec4>& vertices, std::vector<glm::uvec4>& indices) {
+	vertices.clear();
+	indices.clear();
+
+	float L=-20.0f, R=20.0f;
+	int N = 16;
+	int index[N][N], nid=0;
+	for(int i=0; i<N+1; i++)
+		for(int j=0; j<N+1; j++) {
+			vertices.push_back(glm::vec4((R-L)*(i/float(N)) + L, -2.0f, 
+											   (R-L)*(j/float(N)) + L, 1.0f));
+			index[i][j] = nid++;
+		}
+	for(int i=0; i<N-1; i++)
+		for(int j=0; j<N-1; j++)
+			indices.push_back(glm::uvec4(index[i+1][j],
+										index[i][j],
+										index[i+1][j+1],
+										index[i][j+1]));
 }
 
 void SaveObj(const std::string& file,
@@ -58,6 +103,7 @@ ErrorCallback(int error, const char* description) {
 std::shared_ptr<Menger> g_menger;
 Camera g_camera;
 bool smooth_ctrl = false;
+bool enable_ocean = false;
 float ELAPSED = 1.0;
 
 auto g_lt = std::chrono::system_clock::now();
@@ -162,7 +208,9 @@ void KeyCallback(GLFWwindow* window,
 		if (tcs_in_deg > 1.0) tcs_in_deg -= 1.0;
 	} else if (key == GLFW_KEY_PERIOD && action == GLFW_PRESS) { // inner +
 		tcs_in_deg += 1.0;
-	} 
+	} else if (key == GLFW_KEY_O && mods == GLFW_MOD_CONTROL && action == GLFW_RELEASE) {
+		enable_ocean = !enable_ocean;
+	}
 	if (!g_menger) return; // 0-4 only available in Menger mode.
 	if (key == GLFW_KEY_0 && action != GLFW_RELEASE) {
 		g_menger->set_nesting_level(0);
@@ -254,27 +302,12 @@ int main(int argc, char* argv[]) {
 	// floor
 	std::vector<glm::vec4> floor_vertices;
 	std::vector<glm::uvec3> floor_faces;
+	getFloor(floor_vertices, floor_faces, 1);
 
-	// infinite floor
-	// floor_vertices.push_back(glm::vec4(0.0f, -2.0f, 0.0f, 1.0f));
-	// floor_vertices.push_back(glm::vec4(L, -2.0f, L, 0.0f));
-	// floor_vertices.push_back(glm::vec4(L, -2.0f, R, 0.0f));
-	// floor_vertices.push_back(glm::vec4(R, -2.0f, R, 0.0f));
-	// floor_vertices.push_back(glm::vec4(R, -2.0f, L, 0.0f));
-	// floor_faces.push_back(glm::uvec3(0, 1, 2));
-	// floor_faces.push_back(glm::uvec3(0, 2, 3));
-	// floor_faces.push_back(glm::uvec3(0, 3, 4));
-	// floor_faces.push_back(glm::uvec3(0, 4, 1));
-
-	// rectangle
-	float L=-10.0f, R=10.0f;
-	floor_vertices.push_back(glm::vec4(L, -2.0f, L, 1.0f));
-	floor_vertices.push_back(glm::vec4(L, -2.0f, R, 1.0f));
-	floor_vertices.push_back(glm::vec4(R, -2.0f, R, 1.0f));
-	floor_vertices.push_back(glm::vec4(R, -2.0f, L, 1.0f));
-	floor_faces.push_back(glm::uvec3(3, 0, 1));
-	floor_faces.push_back(glm::uvec3(1, 2, 3));
-
+	// ocean
+	std::vector<glm::vec4> ocean_vertices;
+	std::vector<glm::uvec4> ocean_faces;
+	getFloorQuad(ocean_vertices, ocean_faces);
 
 
 	/*********************************************************/
@@ -369,6 +402,31 @@ int main(int argc, char* argv[]) {
 				floor_faces.data(), GL_STATIC_DRAW));
 
 
+	/*** Ocean Program ***/
+
+	CHECK_GL_ERROR(glGenVertexArrays(kNumVaos, &g_array_objects[kOceanVao]));
+	// Switch to the VAO for Floor.
+	CHECK_GL_ERROR(glBindVertexArray(g_array_objects[kOceanVao]));
+
+	// Generate buffer objects
+	CHECK_GL_ERROR(glGenBuffers(kNumVbos, &g_buffer_objects[kOceanVao][0]));
+
+	// Setup vertex data in a VBO.
+	CHECK_GL_ERROR(glBindBuffer(GL_ARRAY_BUFFER, g_buffer_objects[kOceanVao][kVertexBuffer]));
+	// NOTE: We do not send anything right now, we just describe it to OpenGL.
+	CHECK_GL_ERROR(glBufferData(GL_ARRAY_BUFFER, 
+				sizeof(float) * ocean_vertices.size() * 4, ocean_vertices.data(),
+				GL_STATIC_DRAW));
+	CHECK_GL_ERROR(glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 0, 0));
+	CHECK_GL_ERROR(glEnableVertexAttribArray(0));
+
+	// Setup element array buffer.
+	CHECK_GL_ERROR(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, g_buffer_objects[kOceanVao][kIndexBuffer]));
+	CHECK_GL_ERROR(glBufferData(GL_ELEMENT_ARRAY_BUFFER, 
+				sizeof(uint32_t) * ocean_faces.size() * 4,
+				ocean_faces.data(), GL_STATIC_DRAW));
+
+
 
 	/*********************************************************/
 	/*** OpenGL: Shaders *************************************/
@@ -402,18 +460,18 @@ int main(int argc, char* argv[]) {
 	CHECK_GL_SHADER_ERROR(t_eval_shader_id);
 
 	// Setup tessellation shaders for quads.
-	// GLuint quad_t_ctrl_shader_id = 0;
-	// const char* quad_tcs_source_pointer = quad_t_ctrl_shader;
-	// CHECK_GL_ERROR(quad_t_ctrl_shader_id = glCreateShader(GL_TESS_CONTROL_SHADER));
-	// CHECK_GL_ERROR(glShaderSource(quad_t_ctrl_shader_id, 1, &quad_tcs_source_pointer, nullptr));
-	// glCompileShader(quad_t_ctrl_shader_id);
-	// CHECK_GL_SHADER_ERROR(quad_t_ctrl_shader_id);
-	// GLuint quad_t_eval_shader_id = 0;
-	// const char* quad_tes_source_pointer = quad_t_eval_shader;
-	// CHECK_GL_ERROR(quad_t_eval_shader_id = glCreateShader(GL_TESS_EVALUATION_SHADER));
-	// CHECK_GL_ERROR(glShaderSource(quad_t_eval_shader_id, 1, &quad_tes_source_pointer, nullptr));
-	// glCompileShader(quad_t_eval_shader_id);
-	// CHECK_GL_SHADER_ERROR(quad_t_eval_shader_id);
+	GLuint quad_t_ctrl_shader_id = 0;
+	const char* quad_tcs_source_pointer = quad_t_ctrl_shader;
+	CHECK_GL_ERROR(quad_t_ctrl_shader_id = glCreateShader(GL_TESS_CONTROL_SHADER));
+	CHECK_GL_ERROR(glShaderSource(quad_t_ctrl_shader_id, 1, &quad_tcs_source_pointer, nullptr));
+	glCompileShader(quad_t_ctrl_shader_id);
+	CHECK_GL_SHADER_ERROR(quad_t_ctrl_shader_id);
+	GLuint quad_t_eval_shader_id = 0;
+	const char* quad_tes_source_pointer = quad_t_eval_shader;
+	CHECK_GL_ERROR(quad_t_eval_shader_id = glCreateShader(GL_TESS_EVALUATION_SHADER));
+	CHECK_GL_ERROR(glShaderSource(quad_t_eval_shader_id, 1, &quad_tes_source_pointer, nullptr));
+	glCompileShader(quad_t_eval_shader_id);
+	CHECK_GL_SHADER_ERROR(quad_t_eval_shader_id);
 
 	// Setup geometry shader.
 	GLuint geometry_shader_id = 0;
@@ -506,6 +564,41 @@ int main(int argc, char* argv[]) {
 			glGetUniformLocation(floor_program_id, "tcs_out_deg"));
 
 
+	/*** Ocean Program ***/
+
+	// create program
+	GLuint ocean_program_id = 0;
+	CHECK_GL_ERROR(ocean_program_id = glCreateProgram());
+	CHECK_GL_ERROR(glAttachShader(ocean_program_id, t_vertex_shader_id));
+	CHECK_GL_ERROR(glAttachShader(ocean_program_id, quad_t_ctrl_shader_id));
+	CHECK_GL_ERROR(glAttachShader(ocean_program_id, quad_t_eval_shader_id));
+	CHECK_GL_ERROR(glAttachShader(ocean_program_id, geometry_shader_id));
+	CHECK_GL_ERROR(glAttachShader(ocean_program_id, floor_fragment_shader_id));
+
+	// bind attributes
+	CHECK_GL_ERROR(glBindAttribLocation(ocean_program_id, 0, "vertex_position"));
+	CHECK_GL_ERROR(glBindFragDataLocation(ocean_program_id, 0, "fragment_color"));
+	glLinkProgram(ocean_program_id);
+	CHECK_GL_PROGRAM_ERROR(ocean_program_id);
+
+	// unifrom locations
+	GLint ocean_projection_matrix_location = 0;
+	CHECK_GL_ERROR(ocean_projection_matrix_location =
+			glGetUniformLocation(ocean_program_id, "projection"));
+	GLint ocean_view_matrix_location = 0;
+	CHECK_GL_ERROR(ocean_view_matrix_location =
+			glGetUniformLocation(ocean_program_id, "view"));
+	GLint ocean_light_position_location = 0;
+	CHECK_GL_ERROR(ocean_light_position_location =
+			glGetUniformLocation(ocean_program_id, "light_position"));
+	GLint ocean_tcs_in_deg_location = 0;
+	CHECK_GL_ERROR(ocean_tcs_in_deg_location =
+			glGetUniformLocation(ocean_program_id, "tcs_in_deg"));
+	GLint ocean_tcs_out_deg_location = 0;
+	CHECK_GL_ERROR(ocean_tcs_out_deg_location =
+			glGetUniformLocation(ocean_program_id, "tcs_out_deg"));
+
+
 
 	/*********************************************************/
 	/*** OpenGL: Uniforms ************************************/
@@ -587,24 +680,46 @@ int main(int argc, char* argv[]) {
 
 		/*** Floor Program ***/
 
-		// set program + vao
-		CHECK_GL_ERROR(glUseProgram(floor_program_id));
-		CHECK_GL_ERROR(glBindVertexArray(g_array_objects[kFloorVao]));
+		if(!enable_ocean) {
+			// set program + vao
+			CHECK_GL_ERROR(glUseProgram(floor_program_id));
+			CHECK_GL_ERROR(glBindVertexArray(g_array_objects[kFloorVao]));
 
-		// pass uniforms
-		CHECK_GL_ERROR(glUniformMatrix4fv(floor_projection_matrix_location, 1, GL_FALSE,
-			&projection_matrix[0][0]));
-		CHECK_GL_ERROR(glUniformMatrix4fv(floor_view_matrix_location, 1, GL_FALSE,
-			&view_matrix[0][0]));
-		CHECK_GL_ERROR(glUniform4fv(floor_light_position_location, 1, &light_position[0]));
-		CHECK_GL_ERROR(glUniform1f(tcs_in_deg_location, tcs_in_deg));
-		CHECK_GL_ERROR(glUniform1f(tcs_out_deg_location, tcs_out_deg));
+			// pass uniforms
+			CHECK_GL_ERROR(glUniformMatrix4fv(floor_projection_matrix_location, 1, GL_FALSE,
+				&projection_matrix[0][0]));
+			CHECK_GL_ERROR(glUniformMatrix4fv(floor_view_matrix_location, 1, GL_FALSE,
+				&view_matrix[0][0]));
+			CHECK_GL_ERROR(glUniform4fv(floor_light_position_location, 1, &light_position[0]));
+			CHECK_GL_ERROR(glUniform1f(tcs_in_deg_location, tcs_in_deg));
+			CHECK_GL_ERROR(glUniform1f(tcs_out_deg_location, tcs_out_deg));
 
-		// Render floor
-		CHECK_GL_ERROR(glPatchParameteri(GL_PATCH_VERTICES, 3));
-		CHECK_GL_ERROR(glDrawElements(GL_PATCHES, floor_faces.size() * 3, GL_UNSIGNED_INT, 0));
-		// CHECK_GL_ERROR(glDrawElements(GL_TRIANGLES, floor_faces.size() * 3, GL_UNSIGNED_INT, 0));
-		// CHECK_GL_ERROR(glDrawArrays(GL_PATCHES, 0, floor_faces.size() * 3)); // ???
+			// Render floor
+			CHECK_GL_ERROR(glPatchParameteri(GL_PATCH_VERTICES, 3));
+			CHECK_GL_ERROR(glDrawElements(GL_PATCHES, floor_faces.size() * 3, GL_UNSIGNED_INT, 0));
+			// CHECK_GL_ERROR(glDrawElements(GL_TRIANGLES, floor_faces.size() * 3, GL_UNSIGNED_INT, 0));
+			// CHECK_GL_ERROR(glDrawArrays(GL_PATCHES, 0, floor_faces.size() * 3)); // ???	
+		}
+		else {
+			// set program + vao
+			CHECK_GL_ERROR(glUseProgram(ocean_program_id));
+			CHECK_GL_ERROR(glBindVertexArray(g_array_objects[kOceanVao]));
+
+			// pass uniforms
+			CHECK_GL_ERROR(glUniformMatrix4fv(ocean_projection_matrix_location, 1, GL_FALSE,
+				&projection_matrix[0][0]));
+			CHECK_GL_ERROR(glUniformMatrix4fv(ocean_view_matrix_location, 1, GL_FALSE,
+				&view_matrix[0][0]));
+			CHECK_GL_ERROR(glUniform4fv(ocean_light_position_location, 1, &light_position[0]));
+			CHECK_GL_ERROR(glUniform1f(ocean_tcs_in_deg_location, tcs_in_deg));
+			CHECK_GL_ERROR(glUniform1f(ocean_tcs_out_deg_location, tcs_out_deg));
+
+			// Render floor
+			CHECK_GL_ERROR(glPatchParameteri(GL_PATCH_VERTICES, 4));
+			CHECK_GL_ERROR(glDrawElements(GL_PATCHES, ocean_faces.size() * 4, GL_UNSIGNED_INT, 0));
+			// CHECK_GL_ERROR(glDrawElements(GL_TRIANGLES, floor_faces.size() * 3, GL_UNSIGNED_INT, 0));
+			// CHECK_GL_ERROR(glDrawArrays(GL_PATCHES, 0, floor_faces.size() * 3)); // ???	
+		}
 
 
 		/*********************************************************/
