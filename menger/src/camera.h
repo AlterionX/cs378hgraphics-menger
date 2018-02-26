@@ -5,6 +5,8 @@
 
 class Camera {
 public:
+    Camera(void) { reset(); }
+
 	glm::mat4 get_view_matrix() const;
 	// FIXME: add functions to manipulate camera objects.
     void mouse_rot(double dx, double dy);
@@ -19,13 +21,15 @@ public:
     void change_mode(void);
     float get_fov(float deg);
 
+    void reset(void);
+
 private:
 	enum class ViewMode {FPS, NORMAL};
-	ViewMode mode = ViewMode::NORMAL;
-	float camera_distance_ = 3.0;
-	glm::vec3 look_ = glm::vec3(0.0f, 0.0f, -1.0f);
-	glm::vec3 up_ = glm::vec3(0.0f, 1.0, 0.0f);
-	glm::vec3 eye_ = glm::vec3(0.0f, 0.0f, camera_distance_);
+	ViewMode mode;
+	float camera_distance_;
+	glm::vec3 look_;
+	glm::vec3 up_;
+	glm::vec3 eye_;
 	// Note: you may need additional member variables
 };
 

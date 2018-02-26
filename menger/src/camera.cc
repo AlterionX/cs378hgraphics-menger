@@ -83,3 +83,11 @@ void Camera::pan_y(double dt, int dir) {
 float Camera::get_fov(float deg) {
     return glm::clamp(deg / 180.0f * camera_distance_ / 3.0f * 3.14159265359f, 0.0f, 3.1413f);
 }
+
+void Camera::reset(void) {
+    mode = ViewMode::NORMAL;
+	camera_distance_ = 3.0f;
+	look_ = glm::normalize(glm::vec3(0.0f, -1.0f, -1.0f));
+	up_ = glm::normalize(glm::vec3(0.0f, 1.0f, -1.0f));
+	eye_ = glm::vec3(0.0f, 10.0f, 10.0f);
+}
