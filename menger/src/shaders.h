@@ -2,14 +2,6 @@
 #include <GLFW/glfw3.h>
 
 namespace shaders {
-    /**
-    *** List of pipelines:
-    ***     menger cube
-    ***     wireframe
-    ***     ocean
-    ***     floor
-    **/
-
     class GLSPS; // forward declare
 
     // Since we're not too concerned about efficiency
@@ -32,10 +24,6 @@ namespace shaders {
         const char* ss_data[5];
     };
 
-    extern GLSSS menger_sss;
-    extern GLSSS floor_sss;
-    extern GLSSS ocean_sss;
-
     class GLSPS { // OpenGL shader program struct
     public:
         GLSPS(const GLSSS* const sss);
@@ -52,4 +40,15 @@ namespace shaders {
     private:
         GLuint sp_ids[5] {0, 0, 0, 0, 0};
     };
+
+    /**
+    *** List of pipelines:
+    ***     menger cube
+    ***     wireframe
+    ***     ocean
+    ***     floor
+    **/
+    extern GLSSS menger_sss;
+    extern GLSSS floor_sss;
+    extern GLSSS ocean_sss;
 }

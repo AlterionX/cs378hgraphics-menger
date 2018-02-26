@@ -7,12 +7,14 @@
 class Ocean {
 public:
 	void generate_geometry(std::vector<glm::vec4>& obj_vertices,
-		std::vector<glm::uvec4>& obj_faces, double elapsed);
+		std::vector<glm::uvec4>& obj_faces);
     void reset(void);
+    bool dirty(void) const;
 private:
     void generate_bases(std::vector<glm::vec4>& obj_vertices,
 		std::vector<glm::uvec4>& obj_faces);
-    double time_counter = 0;
+    void offset_vert(glm::vec4& data);
+    bool is_dirty = true;
 
     static constexpr int row = 16;
     static constexpr int col = 16;

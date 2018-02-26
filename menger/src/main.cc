@@ -532,6 +532,9 @@ int main(int argc, char* argv[]) {
 	GLint ocean_tcs_out_deg_location = 0;
 	CHECK_GL_ERROR(ocean_tcs_out_deg_location =
 			glGetUniformLocation(ocean_program_id, "tcs_out_deg"));
+    GLint ocean_wave_time_location = 0;
+	CHECK_GL_ERROR(ocean_wave_time_location =
+			glGetUniformLocation(ocean_program_id, "wave_time"));
     GLint ocean_render_wireframe_location = 0;
     CHECK_GL_ERROR(ocean_render_wireframe_location =
             glGetUniformLocation(ocean_program_id, "render_wireframe"));
@@ -543,6 +546,7 @@ int main(int argc, char* argv[]) {
 	glm::vec4 light_position = glm::vec4(10.0f, 10.0f, 0.0f, 1.0f);
 	float aspect = 0.0f;
 	float theta = 0.0f;
+    auto start = std::chrono::system_clock::now();
     g_lt = std::chrono::system_clock::now();
 	while (!glfwWindowShouldClose(window)) {
 
@@ -551,6 +555,7 @@ int main(int argc, char* argv[]) {
 
 		auto ct = std::chrono::system_clock::now();
         double elapsed = (ct - g_lt).count();
+        double since_start = std::chrono::duration_cast<std::chrono::milliseconds>(ct - start).count();
         g_lt = ct;
 
 		/*********************************************************/
@@ -559,7 +564,7 @@ int main(int argc, char* argv[]) {
 		// Setup some basic window stuff.
 		glfwGetFramebufferSize(window, &window_width, &window_height);
 		glViewport(0, 0, window_width, window_height);
-		glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
+		glClearColor(1.0f, 0.0f, 0.0f, 0.0f);
 		glEnable(GL_DEPTH_TEST);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 		glDepthFunc(GL_LESS);
@@ -568,9 +573,9 @@ int main(int argc, char* argv[]) {
 		/*** OpenGL: Regenerate **********************************/
 
 		// Switch to the Geometry VAO.
-		CHECK_GL_ERROR(glBindVertexArray(g_array_objects[kGeometryVao]));
-
 		if (g_menger && g_menger->is_dirty()) {
+            CHECK_GL_ERROR(glBindVertexArray(g_array_objects[kGeometryVao]));
+
             g_menger->generate_geometry(obj_vertices, obj_faces);
 			g_menger->set_clean();
 
@@ -581,8 +586,16 @@ int main(int argc, char* argv[]) {
             CHECK_GL_ERROR(glBufferData(GL_ARRAY_BUFFER, sizeof(float) * obj_vertices.size() * 4, obj_vertices.data(), GL_STATIC_DRAW));
             CHECK_GL_ERROR(glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(uint32_t) * obj_faces.size() * 3, obj_faces.data(), GL_STATIC_DRAW));
 		}
-        if (enable_ocean) {
-            g_ocean->generate_geometry(ocean_vertices, ocean_faces, elapsed);
+        if (enable_ocean && g_ocean->dirty()) {
+            CHECK_GL_ERROR(glBindVertexArray(g_array_objects[kOceanVao]));
+
+            g_ocean->generate_geometry(ocean_vertices, ocean_faces);
+
+            CHECK_GL_ERROR(glBindBuffer(GL_ARRAY_BUFFER, g_buffer_objects[kOceanVao][kVertexBuffer]));
+            CHECK_GL_ERROR(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, g_buffer_objects[kOceanVao][kIndexBuffer]));
+
+            CHECK_GL_ERROR(glBufferData(GL_ARRAY_BUFFER, sizeof(float) * obj_vertices.size() * 4, ocean_vertices.data(), GL_STATIC_DRAW));
+            CHECK_GL_ERROR(glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(uint32_t) * obj_faces.size() * 4, ocean_faces.data(), GL_STATIC_DRAW));
         }
 
 		/*********************************************************/
@@ -652,6 +665,7 @@ int main(int argc, char* argv[]) {
 			CHECK_GL_ERROR(glUniform4fv(ocean_light_position_location, 1, &light_position[0]));
 			CHECK_GL_ERROR(glUniform1f(ocean_tcs_in_deg_location, tcs_in_deg));
 			CHECK_GL_ERROR(glUniform1f(ocean_tcs_out_deg_location, tcs_out_deg));
+            CHECK_GL_ERROR(glUniform1f(ocean_wave_time_location, since_start * 500.0));
             CHECK_GL_ERROR(glUniform1i(ocean_render_wireframe_location, g_render_wireframe));
 
 			// Render floor
