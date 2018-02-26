@@ -564,7 +564,7 @@ int main(int argc, char* argv[]) {
 		// Setup some basic window stuff.
 		glfwGetFramebufferSize(window, &window_width, &window_height);
 		glViewport(0, 0, window_width, window_height);
-		glClearColor(1.0f, 0.0f, 0.0f, 0.0f);
+		glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
 		glEnable(GL_DEPTH_TEST);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 		glDepthFunc(GL_LESS);
@@ -665,7 +665,7 @@ int main(int argc, char* argv[]) {
 			CHECK_GL_ERROR(glUniform4fv(ocean_light_position_location, 1, &light_position[0]));
 			CHECK_GL_ERROR(glUniform1f(ocean_tcs_in_deg_location, tcs_in_deg));
 			CHECK_GL_ERROR(glUniform1f(ocean_tcs_out_deg_location, tcs_out_deg));
-            CHECK_GL_ERROR(glUniform1f(ocean_wave_time_location, since_start * 500.0));
+            CHECK_GL_ERROR(glUniform1f(ocean_wave_time_location, since_start * -0.5));
             CHECK_GL_ERROR(glUniform1i(ocean_render_wireframe_location, g_render_wireframe));
 
 			// Render floor

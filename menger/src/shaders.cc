@@ -53,5 +53,5 @@ namespace shaders {
 
     GLSSS menger_sss {menger_vs, nullptr, nullptr, menger_gs, menger_fs};
     GLSSS floor_sss {floor_vs, t_ctrl_shader, t_eval_shader, menger_gs, floor_fs};
-    GLSSS ocean_sss {ocean_vs, quad_t_ctrl_shader, quad_t_eval_shader, ocean_gs, ocean_fs};
+    GLSSS ocean_sss {ocean_vs, quad_t_ctrl_shader, ocean_tes, ocean_gs, ocean_fs};
 }
