@@ -221,6 +221,7 @@ void main(void){ // TODO: check order of vertices
     world_tes_norm = wave_normal(vs_world_position[0], vs_world_position[2]);
     if(tidal_time < TIDAL_LEFT_T)
         world_tes_norm += tidal_normal(vs_world_position[0], vs_world_position[2]);
+    world_tes_norm = normalize(world_tes_norm);
 }
 )zzz";
 
