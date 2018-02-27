@@ -17,8 +17,8 @@ void Ocean::reset(void) {
 }
 
 void Ocean::offset_vert(glm::vec4& vert) {
-    vert *= glm::vec4(40.0f, 1.0f, 40.0f, 1.0f);
-    vert -= glm::vec4(20.0f, 0.0f, 20.0f, 0.0f);
+    vert *= glm::vec4(80.0f, 1.0f, 80.0f, 1.0f);
+    vert -= glm::vec4(40.0f, 0.0f, 40.0f, 0.0f);
 }
 
 bool Ocean::dirty(void) const {

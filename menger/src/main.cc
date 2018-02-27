@@ -319,6 +319,11 @@ int main(int argc, char* argv[]) {
 	g_menger->generate_geometry(obj_vertices, obj_faces);
 	g_menger->set_clean();
 
+    obj_vertices.push_back(glm::vec4(10.0f, 10.0f, 0.0f, 1.0f) + glm::vec4(0.1f, 0.1f, 0.1f, 0.0f));
+    obj_vertices.push_back(glm::vec4(10.0f, 10.0f, 0.0f, 1.0f) + glm::vec4(-0.1f, -0.1f, 0.1f, 0.0f));
+    obj_vertices.push_back(glm::vec4(10.0f, 10.0f, 0.0f, 1.0f) + glm::vec4(0.1f, -0.1f, 0.1f, 0.0f));
+    obj_faces.push_back(glm::uvec3(obj_vertices.size() - 3, obj_vertices.size() - 2, obj_vertices.size() - 1));
+
 	// floor
 	std::vector<glm::vec4> floor_vertices;
 	std::vector<glm::uvec3> floor_faces;
@@ -578,6 +583,10 @@ int main(int argc, char* argv[]) {
 
             g_menger->generate_geometry(obj_vertices, obj_faces);
 			g_menger->set_clean();
+            obj_vertices.push_back(light_position + glm::vec4(0.01f, 0.01f, 0.01f, 1.0f));
+            obj_vertices.push_back(light_position + glm::vec4(-0.01f, -0.01f, 0.01f, 1.0f));
+            obj_vertices.push_back(light_position + glm::vec4(0.01f, -0.01f, 0.01f, 1.0f));
+            obj_faces.push_back(glm::uvec3(obj_vertices.size() - 3, obj_vertices.size() - 2, obj_vertices.size() - 1));
 
 			CHECK_GL_ERROR(glBindBuffer(GL_ARRAY_BUFFER, g_buffer_objects[kGeometryVao][kVertexBuffer]));
 			CHECK_GL_ERROR(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, g_buffer_objects[kGeometryVao][kIndexBuffer]));
@@ -688,7 +697,7 @@ int main(int argc, char* argv[]) {
 		// smooth
 		if (smooth_ctrl) {
 			// time delta smoothing
-	        elapsed = 0.1;
+	        elapsed = 0.1 * 5;
 	        if ((int) g_should_move) {
 	            g_camera.move(elapsed, (int) g_should_move);
 	        }

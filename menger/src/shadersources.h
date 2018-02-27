@@ -74,7 +74,7 @@ void main(void){ // TODO: check order of vertices
 					  + gl_TessCoord.y * gl_in[1].gl_Position
 					  + gl_TessCoord.z * gl_in[2].gl_Position;
 	gl_Position = view * vs_world_position;
-	vs_light_direction = -gl_Position + view * light_position;
+	vs_light_direction = view * light_position - gl_Position;
 })zzz";
 
 
@@ -119,7 +119,7 @@ float single_wave_offset(vec2 wave_dir, vec2 pos, float A, float freq, float pha
 vec3 single_wave_normal(vec2 wave_dir, vec2 pos, float A, float freq, float phase, float k) {
     float dx = k * wave_dir[0] * freq * A * pow((sin(dot(wave_dir, pos) * freq + wave_time * phase) + 1) / 2, k - 1) * cos(dot(wave_dir, pos) * freq + wave_time * phase);
     float dy = k * wave_dir[1] * freq * A * pow((sin(dot(wave_dir, pos) * freq + wave_time * phase) + 1) / 2, k - 1) * cos(dot(wave_dir, pos) * freq + wave_time * phase);
-    return vec3(-dx, -dy, 1);
+    return vec3(dx, dy, 1);
 }
 vec4 wave_normal(float x, float y) {
     vec2 wave_dir = vec2(1, 1);
@@ -137,7 +137,7 @@ float wave_offset(float x, float y) {
     float shift = 5;
     return single_wave_offset(wave_dir, vec2(x, y), A, freq, phase, shift);
 }
-void main(void){ // TODO: check order of vertices
+void main(void) { // TODO: check order of vertices
 	vec4 p1 = lin_interpolate(gl_in[0].gl_Position, gl_in[3].gl_Position, gl_TessCoord.x);
 	vec4 p2 = lin_interpolate(gl_in[1].gl_Position, gl_in[2].gl_Position, gl_TessCoord.x);
 	vs_world_position = lin_interpolate(p1, p2, gl_TessCoord.y);
@@ -215,6 +215,7 @@ out vec4 normal;
 flat out vec4 world_normal;
 out vec4 light_direction;
 out vec4 world_position;
+out vec4 view_pos;
 out vec3 edge_dist;
 
 void main() {
@@ -237,6 +238,7 @@ void main() {
     int n;
     for (n = 0; n < gl_in.length(); n++) {
 		light_direction = vs_light_direction[n];
+        view_pos = gl_in[n].gl_Position;
 		gl_Position = projection * gl_in[n].gl_Position;
 		world_position = vs_world_position[n];
         edge_dist = vec3(float(n == 0), float(n == 1), float(n == 2)) * dist_scale;
@@ -295,10 +297,13 @@ void main() {
 const char* ocean_fs =
 R"zzz(#version 330 core
 uniform bool render_wireframe;
+uniform mat4 view;
+uniform vec4 light_position;
+
 in vec4 normal;
 in vec4 light_direction;
-in vec4 position;
-flat in vec4 world_position;
+in vec4 view_pos;
+in vec4 world_position;
 in vec3 edge_dist;
 
 out vec4 fragment_color;
@@ -307,20 +312,22 @@ void main() {
     if (render_wireframe && (edge_dist[0] < 0.02 || edge_dist[1] < 0.02 || edge_dist[2] < 0.02)) {
        fragment_color = vec4(0.0, 1.0, 0.0, 1.0);
     } else {
-        vec4 ka = vec4(0.01, 0.01, 0.1, 1.0);
-        vec4 kd = vec4(0.5, 0.5, 1.0, 1.0);
-        vec4 ks = vec4(1.0, 1.0, 1.0, 1.0);
-        float alpha = 2000;
+        vec3 ka = vec3(0.01, 0.01, 0.1);
+        vec3 kd = vec3(0.5, 0.5, 1.0);
+        vec3 ks = vec3(1.0, 1.0, 1.0);
+        float alpha = 20;
 
-        vec4 light_col = vec4(1.0, 1.0, 1.0, 0.0);
+        vec3 light_col = vec3(1.0);
 
-        vec4 ambient =  ka * light_col;
-        vec4 diffuse =  kd * dot(normalize(light_direction), normal);
-        vec4 specular =  ks * pow(dot(-position, reflect(light_direction, normal)), alpha);
+        vec4 ld = vec4(normalize(view * light_position - view_pos).xyz, 0.0);
+
+        vec3 ambient = ka;
+        vec3 diffuse = kd * abs(dot(ld, normal) + vec3(1.0)) / 2.0;
+        vec3 specular = ks * pow(dot(vec4(normalize(vec3(view_pos)), 1.0), reflect(ld, normal)), alpha);
 
         //distance attenuate?
-        fragment_color = ambient + light_col * (diffuse + specular);
-        fragment_color = vec4(vec3(normal), 1.0);
-        fragment_color = diffuse;
+        fragment_color = vec4(diffuse, 1.0);
+        fragment_color = vec4(specular, 1.0);
+        fragment_color = vec4(ambient + light_col * (diffuse + specular), 1.0);
     }
 })zzz";
