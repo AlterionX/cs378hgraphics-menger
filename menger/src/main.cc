@@ -112,7 +112,7 @@ float ELAPSED = 1.0;
 float tcs_in_deg = 4.0;
 float tcs_out_deg = 4.0;
 
-bool g_render_wireframe = false;
+bool g_render_wireframe = true;
 bool g_render_base = true;
 int g_init_wave = 0;
 
