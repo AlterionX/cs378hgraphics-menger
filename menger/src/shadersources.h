@@ -25,7 +25,7 @@ void main()
 )zzz";
 
 
-/*** no-op (for tesselation) ***/
+/*** no-op (for tessellation) ***/
 
 const char* passthrough_vs =
 R"zzz(#version 330 core
@@ -45,7 +45,7 @@ const char* ocean_vs = passthrough_vs;
 
 
 /*********************************************************/
-/*** tesselation *****************************************/
+/*** tessellation *****************************************/
 
 /*** triangle ***/
 
@@ -91,15 +91,38 @@ R"zzz(#version 430 core
 layout (vertices = 4) out;
 uniform float tcs_in_deg;
 uniform float tcs_out_deg;
+uniform float tidal_time;
+
+#define TIDAL_LEFT_T 100.0
+#define MAX_ADAPTIVE 10
+#define TIDAL_DECAY 5
+
 void main(void){
     if (gl_InvocationID == 0){
-        gl_TessLevelInner[0] = tcs_in_deg;
-        gl_TessLevelInner[1] = tcs_in_deg;
 
-        gl_TessLevelOuter[0] = tcs_out_deg;
-        gl_TessLevelOuter[1] = tcs_out_deg;
-        gl_TessLevelOuter[2] = tcs_out_deg;
-        gl_TessLevelOuter[3] = tcs_out_deg;
+        float in_deg = tcs_in_deg;
+        float out_deg = tcs_out_deg;
+
+        // adaptive tessellation
+        if(tidal_time < TIDAL_LEFT_T) {
+            float grid_size = distance(gl_in[0].gl_Position.xyz, gl_in[1].gl_Position.xyz);
+            vec3 grid_center = (gl_in[0].gl_Position.xyz + gl_in[1].gl_Position.xyz + gl_in[2].gl_Position.xyz + gl_in[3].gl_Position.xyz)/4.0;
+            vec2 grid_c = vec2(grid_center[0], grid_center[2]);
+            vec2 tidal_c = vec2(1, 0) * tidal_time + vec2(0, 0);
+            if(distance(grid_c, tidal_c) / grid_size * TIDAL_DECAY < MAX_ADAPTIVE) {
+                in_deg = tcs_in_deg + int(MAX_ADAPTIVE - distance(grid_c, tidal_c) / grid_size * TIDAL_DECAY);
+                out_deg = tcs_out_deg + int(MAX_ADAPTIVE - distance(grid_c, tidal_c) / grid_size * TIDAL_DECAY);
+            }   
+        }
+
+        // set tess levels
+        gl_TessLevelInner[0] = in_deg;
+        gl_TessLevelInner[1] = in_deg;
+
+        gl_TessLevelOuter[0] = out_deg;
+        gl_TessLevelOuter[1] = out_deg;
+        gl_TessLevelOuter[2] = out_deg;
+        gl_TessLevelOuter[3] = out_deg;
     }
     gl_out[gl_InvocationID].gl_Position = gl_in[gl_InvocationID].gl_Position;
 }
@@ -111,15 +134,51 @@ layout (quads) in;
 uniform mat4 view;
 uniform vec4 light_position;
 uniform float wave_time;
+uniform float tidal_time;
 
 out vec4 vs_light_direction;
 out vec4 vs_world_light_direction;
 out vec4 vs_world_position;
 out vec4 world_tes_norm;
 
+#define M_PI 3.1415926535897932384626433832795
+#define TIDAL_LEFT_T 100.0
+
 vec4 lin_interpolate(vec4 A, vec4 B, float t) {
 	return A*t + B*(1-t);
 }
+
+
+/* tidal fn + normal */
+float moving_gaussian_offset(vec2 pos, vec2 dir, vec2 center, float A, float sigma) {
+    vec2 n_c = dir * tidal_time + center;
+    float dist = distance(pos, n_c);
+    return A * exp(-(dist * dist) / (2 * sigma * sigma)) / (2 * M_PI * sigma * sigma);
+}
+float tidal_offset(float x, float y) {
+    vec2 dir =      vec2(1, 0);
+    vec2 center =   vec2(0, 0);
+    float A =       40.0;
+    float sigma =   1.0;
+    return moving_gaussian_offset(vec2(x, y), dir, center, A, sigma);
+}
+vec3 moving_gaussian_normal(vec2 pos, vec2 dir, vec2 center, float A, float sigma) {
+    vec2 n_c = dir * tidal_time + center;
+    float dist = distance(pos, n_c);
+    float dx = A * (n_c[0] - pos[0]) * exp(-(dist * dist) / (2 * sigma * sigma)) / (2 * M_PI * pow(sigma, 4));
+    float dy = A * (n_c[1] - pos[1]) * exp(-(dist * dist) / (2 * sigma * sigma)) / (2 * M_PI * pow(sigma, 4));
+    return vec3(-dx, 1, -dy);
+}
+vec4 tidal_normal(float x, float y) {
+    vec2 dir =      vec2(1, 0);
+    vec2 center =   vec2(0, 0);
+    float A =       20.0;
+    float sigma =   0.5;
+    return vec4(moving_gaussian_normal(vec2(x, y), dir, center, A, sigma), 0.0);
+}
+
+
+/* wave fn + normal */
 float single_wave_offset(vec2 wave_dir, vec2 pos, float A, float freq, float phase, float k) {
     return 2 * A * pow((sin(dot(wave_dir, pos) * freq + wave_time * phase) + 1) / 2, k);
 }
@@ -144,18 +203,24 @@ vec4 wave_normal(float x, float y) {
     float shift = 5;
     return vec4(normalize(single_wave_normal(wave_dir, vec2(x, y), A, freq, phase, shift)), 0.0);
 }
+
+
 void main(void){ // TODO: check order of vertices
 	vec4 p1 = lin_interpolate(gl_in[0].gl_Position, gl_in[3].gl_Position, gl_TessCoord.x);
 	vec4 p2 = lin_interpolate(gl_in[1].gl_Position, gl_in[2].gl_Position, gl_TessCoord.x);
 	vs_world_position = lin_interpolate(p1, p2, gl_TessCoord.y);
 
     vs_world_position += vec4(0.0, wave_offset(vs_world_position[0], vs_world_position[2]), 0.0, 1.0);
+    if(tidal_time < TIDAL_LEFT_T)
+        vs_world_position += vec4(0.0, tidal_offset(vs_world_position[0], vs_world_position[2]), 0.0, 1.0);
 
 	gl_Position = view * vs_world_position;
     vs_light_direction = view * light_position - gl_Position;
     vs_world_light_direction = light_position - vs_world_position;
 
     world_tes_norm = wave_normal(vs_world_position[0], vs_world_position[2]);
+    if(tidal_time < TIDAL_LEFT_T)
+        world_tes_norm += tidal_normal(vs_world_position[0], vs_world_position[2]);
 }
 )zzz";
 
@@ -278,9 +343,9 @@ in vec4 light_direction;
 in vec3 edge_dist;
 out vec4 fragment_color;
 void main() {
-    if (render_wireframe && (edge_dist[0] < 0.02 || edge_dist[1] < 0.02 || edge_dist[2] < 0.02)) {
+    /*if (render_wireframe && (edge_dist[0] < 0.02 || edge_dist[1] < 0.02 || edge_dist[2] < 0.02)) {
         fragment_color = vec4(0.0, 1.0, 0.0, 1.0);
-    } else {
+    } else*/ {
         vec4 color = clamp(world_normal * world_normal, 0.0, 1.0);
         float dot_nl = dot(normalize(light_direction), normalize(normal));
         dot_nl = clamp(dot_nl, 0.0, 1.0);

@@ -107,6 +107,7 @@ std::shared_ptr<Ocean> g_ocean;
 Camera g_camera;
 bool smooth_ctrl = false;
 bool enable_ocean = false;
+bool tidal_reset = false;
 float ELAPSED = 1.0;
 
 float tcs_in_deg = 4.0;
@@ -217,6 +218,11 @@ void KeyCallback(GLFWwindow* window,
             g_render_base = !g_render_base;
         } else {
             g_render_wireframe = !g_render_wireframe;
+        }
+	} else if (key == GLFW_KEY_T && action == GLFW_PRESS) {
+        if (mods == GLFW_MOD_CONTROL) {
+        	tidal_reset = true;
+        	std::cout << "please start tidal" << std::endl;
         }
 	} else if (key == GLFW_KEY_MINUS && action != GLFW_RELEASE) { // outer -
 		if (tcs_out_deg > 1.0) tcs_out_deg -= 1.0;
@@ -535,6 +541,9 @@ int main(int argc, char* argv[]) {
     GLint ocean_wave_time_location = 0;
 	CHECK_GL_ERROR(ocean_wave_time_location =
 			glGetUniformLocation(ocean_program_id, "wave_time"));
+    GLint ocean_tidal_time_location = 0;
+	CHECK_GL_ERROR(ocean_tidal_time_location =
+			glGetUniformLocation(ocean_program_id, "tidal_time"));
     GLint ocean_render_wireframe_location = 0;
     CHECK_GL_ERROR(ocean_render_wireframe_location =
             glGetUniformLocation(ocean_program_id, "render_wireframe"));
@@ -547,6 +556,7 @@ int main(int argc, char* argv[]) {
 	float aspect = 0.0f;
 	float theta = 0.0f;
     auto start = std::chrono::system_clock::now();
+    auto tidal_start = std::chrono::system_clock::now() - std::chrono::minutes(1);
     g_lt = std::chrono::system_clock::now();
 	while (!glfwWindowShouldClose(window)) {
 
@@ -556,6 +566,7 @@ int main(int argc, char* argv[]) {
 		auto ct = std::chrono::system_clock::now();
         double elapsed = (ct - g_lt).count();
         double since_start = std::chrono::duration_cast<std::chrono::milliseconds>(ct - start).count();
+        double tidal_since_start = std::chrono::duration_cast<std::chrono::milliseconds>(ct - tidal_start).count();
         g_lt = ct;
 
 		/*********************************************************/
@@ -666,6 +677,7 @@ int main(int argc, char* argv[]) {
 			CHECK_GL_ERROR(glUniform1f(ocean_tcs_in_deg_location, tcs_in_deg));
 			CHECK_GL_ERROR(glUniform1f(ocean_tcs_out_deg_location, tcs_out_deg));
             CHECK_GL_ERROR(glUniform1f(ocean_wave_time_location, since_start * -0.5));
+            CHECK_GL_ERROR(glUniform1f(ocean_tidal_time_location, tidal_since_start / 1000.0));
             CHECK_GL_ERROR(glUniform1i(ocean_render_wireframe_location, g_render_wireframe));
 
 			// Render floor
@@ -701,6 +713,13 @@ int main(int argc, char* argv[]) {
 	        if ((int) g_should_pan_y) {
 	            g_camera.pan_y(elapsed, (int) g_should_pan_y);
 	        }
+		}
+
+		// tidal
+		if(tidal_reset) {
+			tidal_reset = false;
+			tidal_start = std::chrono::system_clock::now();
+        	std::cout << "tidal reset" << std::endl;
 		}
 	}
 
