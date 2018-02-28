@@ -26,11 +26,11 @@ void sphere::create_sphere(float radius, int spoke_cnt, int tier_cnt, std::vecto
                 auto upper_face = glm::uvec3(
                     (hu - 1) * spoke_cnt + tu,
                     hu * spoke_cnt + tu,
-                    (hu - 1) * spoke_cnt + tu + 1
+                    (hu - 1) * spoke_cnt + (tu + 1) % spoke_cnt
                 );
                 auto bottom_face = glm::uvec3(
-                    hu * spoke_cnt + tu + 1,
-                    (hu - 1) * spoke_cnt + tu + 1,
+                    hu * spoke_cnt + (tu + 1) % spoke_cnt,
+                    (hu - 1) * spoke_cnt + (tu + 1) % spoke_cnt,
                     hu * spoke_cnt + tu
                 );
                 obj_faces.push_back(upper_face);
