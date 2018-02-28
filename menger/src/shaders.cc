@@ -4,6 +4,8 @@
 #include <iostream>
 #include "debuggl.h"
 
+#define ARRAY_INIT_SSS(XS) {XS ## _vs, XS ## _tcs, XS ## _tes, XS ## _gs, XS ## _fs}
+
 namespace shaders {
     GLSSS::GLSSS(const char* vs, const char* tcs, const char* tes, const char* gs, const char* fs):
         ss_data {vs, tcs, tes, gs, fs} {}
@@ -21,9 +23,11 @@ namespace shaders {
     GLSPS GLSSS::compile(void) const { return GLSPS(this); }
 
     GLSPS::GLSPS(const GLSSS* const sss) {
+        const char* stages[] {"vs", "tcs", "tes", "gs", "fs"};
         for (int i = 0; i < 5; ++i) {
             auto ss = sss->ss(i);
             sp_ids[i] = 0;
+            std::cout << "Compiling " << stages[i] << "..." << std::endl;
             if (ss != nullptr) {
                 CHECK_GL_ERROR(sp_ids[i] = glCreateShader(GLSSS::type(i)));
                 CHECK_GL_ERROR(glShaderSource(sp_ids[i], 1, &ss, nullptr));
@@ -31,6 +35,7 @@ namespace shaders {
                 CHECK_GL_SHADER_ERROR(sp_ids[i]);
             }
         }
+        std::cout << "Compilation completed." << std::endl;
     }
 
     GLuint GLSPS::vs_id(void) const { return sp_ids[0]; }
@@ -51,7 +56,8 @@ namespace shaders {
         return program_id;
     }
 
-    GLSSS menger_sss {menger_vs, nullptr, nullptr, menger_gs, menger_fs};
-    GLSSS floor_sss {floor_vs, t_ctrl_shader, t_eval_shader, menger_gs, floor_fs};
-    GLSSS ocean_sss {ocean_vs, quad_t_ctrl_shader, ocean_tes, ocean_gs, ocean_fs};
+    GLSSS menger_sss ARRAY_INIT_SSS(menger);
+    GLSSS floor_sss ARRAY_INIT_SSS(floor);
+    GLSSS ocean_sss ARRAY_INIT_SSS(ocean);
+    GLSSS light_sss ARRAY_INIT_SSS(light);
 }

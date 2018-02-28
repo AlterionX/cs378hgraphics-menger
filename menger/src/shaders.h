@@ -41,14 +41,8 @@ namespace shaders {
         GLuint sp_ids[5] {0, 0, 0, 0, 0};
     };
 
-    /**
-    *** List of pipelines:
-    ***     menger cube
-    ***     wireframe
-    ***     ocean
-    ***     floor
-    **/
     extern GLSSS menger_sss;
     extern GLSSS floor_sss;
     extern GLSSS ocean_sss;
+    extern GLSSS light_sss;
 }
