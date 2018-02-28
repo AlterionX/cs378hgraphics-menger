@@ -27,7 +27,7 @@ int window_width = 800, window_height = 600;
 enum { kVertexBuffer, kIndexBuffer, kNumVbos };
 
 // These are our VAOs.
-enum { kGeometryVao, kFloorVao, kOceanVao, kLightVao, kShipVao, kNumVaos };
+enum { kMengerVao, kFloorVao, kOceanVao, kLightVao, kShipVao, kNumVaos };
 
 GLuint g_array_objects[kNumVaos];  // This will store the VAO descriptors.
 GLuint g_buffer_objects[kNumVaos][kNumVbos];  // These will store VBO descriptors.
@@ -36,6 +36,18 @@ GLuint g_buffer_objects[kNumVaos][kNumVbos];  // These will store VBO descriptor
 /*** easier uniform passing ******************************/
 #define ULNAME(PREFIX, NAME) PREFIX ## _ ## NAME ## _location
 #define GET_UNIFORM_LOC(PREFIX, NAME) GLint ULNAME(PREFIX, NAME) = 0; CHECK_GL_ERROR(ULNAME(PREFIX, NAME) = glGetUniformLocation(PREFIX ## _program_id, #NAME));
+
+#define VAO(NAME) k ## NAME ## Vao
+#define BASE_VAO_SETUP(NAME, VERT_DIMEN, FACE_VERTS, VEC_PREFIX) CHECK_GL_ERROR(glGenVertexArrays(kNumVaos, &g_array_objects[VAO(NAME)]));\
+CHECK_GL_ERROR(glBindVertexArray(g_array_objects[VAO(NAME)]));\
+CHECK_GL_ERROR(glGenBuffers(kNumVbos, &g_buffer_objects[VAO(NAME)][0]));\
+CHECK_GL_ERROR(glBindBuffer(GL_ARRAY_BUFFER, g_buffer_objects[VAO(NAME)][kVertexBuffer]));\
+CHECK_GL_ERROR(glBufferData(GL_ARRAY_BUFFER, sizeof(float) * VEC_PREFIX ## _vertices.size() * VERT_DIMEN, VEC_PREFIX ## _vertices.data(), GL_STATIC_DRAW));\
+CHECK_GL_ERROR(glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 0, 0));\
+CHECK_GL_ERROR(glEnableVertexAttribArray(0));\
+CHECK_GL_ERROR(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, g_buffer_objects[VAO(NAME)][kIndexBuffer]));\
+CHECK_GL_ERROR(glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(uint32_t) * VEC_PREFIX ## _faces.size() * FACE_VERTS, VEC_PREFIX ## _faces.data(), GL_STATIC_DRAW))
+
 
 /*********************************************************/
 /*** ??? *************************************************/
@@ -104,8 +116,7 @@ void SaveObj(const std::string& file,
 		fout << "f " << (1+f[0]) << " " << (1+f[1]) << " " << (1+f[2]) << std::endl;
 }
 
-void
-ErrorCallback(int error, const char* description) {
+void ErrorCallback(int error, const char* description) {
 	std::cerr << "GLFW Error: " << description << "\n";
 }
 
@@ -131,16 +142,16 @@ bool g_launch_ships = false;
 auto g_lt = std::chrono::system_clock::now();
 
 enum class MovementDirection {
-    FORWARD = 1, BACKWARD = -1, NONE = 0
+    FORWARD = 1, BACKWARD = -1, NONE = 0, FAST_FORW = 3, FAST_BACK = -3
 };
 MovementDirection g_should_move = MovementDirection::NONE;
 enum class PanDirection {
-    P = 1, N = -1, NONE = 0
+    P = 1, N = -1, NONE = 0, FAST_P = 3, FAST_N = -3
 };
 PanDirection g_should_pan_x = PanDirection::NONE;
 PanDirection g_should_pan_y = PanDirection::NONE;
 enum class RollDirection {
-    COUNTER = -1, CLOCK = 1, NONE = 0
+    COUNTER = -1, CLOCK = 1, NONE = 0, FAST_COUNTER = -3, FAST_CLOCK = -3
 };
 RollDirection g_should_roll = RollDirection::NONE;
 
@@ -171,8 +182,8 @@ void KeyCallback(GLFWwindow* window,
     		g_should_move = MovementDirection::FORWARD;
         }
         if(!smooth_ctrl) g_camera.move(ELAPSED, (int) g_should_move);
-	} else if (key == GLFW_KEY_S && mods != GLFW_MOD_CONTROL) { // move backwards
-        if (action == GLFW_RELEASE && g_should_move == MovementDirection::BACKWARD) {
+	} else if (key == GLFW_KEY_S) { // move backwards
+        if (action == GLFW_RELEASE && g_should_move < MovementDirection::NONE) {
             g_should_move = MovementDirection::NONE;
         } else if (action == GLFW_PRESS) {
             g_should_move = MovementDirection::BACKWARD;
@@ -395,96 +406,15 @@ int main(int argc, char* argv[]) {
 	/*** OpenGL: VAO + VBO  **********************************/
 
 	/*** Geometry Program ***/
-
-	// Setup our VAO array, switch to geometry VAO
-	CHECK_GL_ERROR(glGenVertexArrays(kNumVaos, &g_array_objects[kGeometryVao]));
-	CHECK_GL_ERROR(glBindVertexArray(g_array_objects[kGeometryVao]));
-	// Generate buffer objects
-	CHECK_GL_ERROR(glGenBuffers(kNumVbos, &g_buffer_objects[kGeometryVao][0]));
-
-	// Setup vertex data in a VBO.
-	CHECK_GL_ERROR(glBindBuffer(GL_ARRAY_BUFFER, g_buffer_objects[kGeometryVao][kVertexBuffer]));
-	CHECK_GL_ERROR(glBufferData(GL_ARRAY_BUFFER,
-		sizeof(float) * obj_vertices.size() * 4, obj_vertices.data(),
-		GL_STATIC_DRAW));
-	CHECK_GL_ERROR(glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 0, 0));
-	CHECK_GL_ERROR(glEnableVertexAttribArray(0));
-
-	// Setup element array buffer.
-	CHECK_GL_ERROR(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, g_buffer_objects[kGeometryVao][kIndexBuffer]));
-	CHECK_GL_ERROR(glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(uint32_t) * obj_faces.size() * 3,
-		obj_faces.data(), GL_STATIC_DRAW));
-
-
+    BASE_VAO_SETUP(Menger, 4, 3, obj);
 	/*** Floor Program ***/
-
-    // Gen & switch to the VAO for Floor, gen VBOs
-	CHECK_GL_ERROR(glGenVertexArrays(kNumVaos, &g_array_objects[kFloorVao]));
-	CHECK_GL_ERROR(glBindVertexArray(g_array_objects[kFloorVao]));
-	CHECK_GL_ERROR(glGenBuffers(kNumVbos, &g_buffer_objects[kFloorVao][0]));
-
-	// Setup vertex data in a VBO.
-	CHECK_GL_ERROR(glBindBuffer(GL_ARRAY_BUFFER, g_buffer_objects[kFloorVao][kVertexBuffer]));
-	CHECK_GL_ERROR(glBufferData(GL_ARRAY_BUFFER,
-				sizeof(float) * floor_vertices.size() * 4, floor_vertices.data(),
-				GL_STATIC_DRAW));
-	CHECK_GL_ERROR(glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 0, 0));
-	CHECK_GL_ERROR(glEnableVertexAttribArray(0));
-
-	// Setup element array buffer.
-	CHECK_GL_ERROR(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, g_buffer_objects[kFloorVao][kIndexBuffer]));
-	CHECK_GL_ERROR(glBufferData(GL_ELEMENT_ARRAY_BUFFER,
-				sizeof(uint32_t) * floor_faces.size() * 3,
-				floor_faces.data(), GL_STATIC_DRAW));
-
+    BASE_VAO_SETUP(Floor, 4, 3, floor);
 	/*** Ocean Program ***/
-
-	CHECK_GL_ERROR(glGenVertexArrays(kNumVaos, &g_array_objects[kOceanVao]));
-	// Switch to the VAO for Floor.
-	CHECK_GL_ERROR(glBindVertexArray(g_array_objects[kOceanVao]));
-
-	// Generate buffer objects
-	CHECK_GL_ERROR(glGenBuffers(kNumVbos, &g_buffer_objects[kOceanVao][0]));
-
-	// Setup vertex data in a VBO.
-	CHECK_GL_ERROR(glBindBuffer(GL_ARRAY_BUFFER, g_buffer_objects[kOceanVao][kVertexBuffer]));
-	// NOTE: We do not send anything right now, we just describe it to OpenGL.
-	CHECK_GL_ERROR(glBufferData(GL_ARRAY_BUFFER,
-				sizeof(float) * ocean_vertices.size() * 4, ocean_vertices.data(),
-				GL_STATIC_DRAW));
-	CHECK_GL_ERROR(glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 0, 0));
-	CHECK_GL_ERROR(glEnableVertexAttribArray(0));
-
-	// Setup element array buffer.
-	CHECK_GL_ERROR(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, g_buffer_objects[kOceanVao][kIndexBuffer]));
-	CHECK_GL_ERROR(glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(uint32_t) * ocean_faces.size() * 4,
-			ocean_faces.data(), GL_STATIC_DRAW));
-
+    BASE_VAO_SETUP(Ocean, 4, 4, ocean);
     /*** Light Program ***/
-
-	CHECK_GL_ERROR(glGenVertexArrays(kNumVaos, &g_array_objects[kLightVao]));
-	CHECK_GL_ERROR(glBindVertexArray(g_array_objects[kLightVao]));
-	CHECK_GL_ERROR(glGenBuffers(kNumVbos, &g_buffer_objects[kLightVao][0]));
-	CHECK_GL_ERROR(glBindBuffer(GL_ARRAY_BUFFER, g_buffer_objects[kLightVao][kVertexBuffer]));
-	// NOTE: We do not send anything right now, we just describe it to OpenGL.
-	CHECK_GL_ERROR(glBufferData(GL_ARRAY_BUFFER, sizeof(float) * light_vertices.size() * 4, light_vertices.data(), GL_STATIC_DRAW));
-	CHECK_GL_ERROR(glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 0, 0));
-	CHECK_GL_ERROR(glEnableVertexAttribArray(0));
-	CHECK_GL_ERROR(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, g_buffer_objects[kLightVao][kIndexBuffer]));
-	CHECK_GL_ERROR(glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(uint32_t) * light_faces.size() * 3,
-			light_faces.data(), GL_STATIC_DRAW));
-
+    BASE_VAO_SETUP(Light, 4, 3, light);
     /*** Ship Program(s) ***/
-
-	CHECK_GL_ERROR(glGenVertexArrays(kNumVaos, &g_array_objects[kShipVao]));
-	CHECK_GL_ERROR(glBindVertexArray(g_array_objects[kShipVao]));
-	CHECK_GL_ERROR(glGenBuffers(kNumVbos, &g_buffer_objects[kShipVao][0]));
-	CHECK_GL_ERROR(glBindBuffer(GL_ARRAY_BUFFER, g_buffer_objects[kShipVao][kVertexBuffer]));
-	CHECK_GL_ERROR(glBufferData(GL_ARRAY_BUFFER, sizeof(float) * ship_vertices.size() * 4, ship_vertices.data(), GL_STATIC_DRAW));
-	CHECK_GL_ERROR(glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 0, 0));
-	CHECK_GL_ERROR(glEnableVertexAttribArray(0));
-	CHECK_GL_ERROR(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, g_buffer_objects[kShipVao][kIndexBuffer]));
-	CHECK_GL_ERROR(glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(uint32_t) * ship_faces.size() * 3, ocean_faces.data(), GL_STATIC_DRAW));
+    BASE_VAO_SETUP(Ship, 4, 3, ship);
 
 	/*********************************************************/
 	/*** OpenGL: Shaders & Programs **************************/
@@ -684,7 +614,7 @@ int main(int argc, char* argv[]) {
             obj_vertices.push_back(light_position + glm::vec4(0.01f, -0.01f, 0.01f, 1.0f));
             obj_faces.push_back(glm::uvec3(obj_vertices.size() - 3, obj_vertices.size() - 2, obj_vertices.size() - 1));
 
-            CHECK_GL_ERROR(glBindVertexArray(g_array_objects[kGeometryVao]));
+            CHECK_GL_ERROR(glBindVertexArray(g_array_objects[kMengerVao]));
 
             CHECK_GL_ERROR(glBufferData(GL_ARRAY_BUFFER, sizeof(float) * obj_vertices.size() * 4, obj_vertices.data(), GL_STATIC_DRAW));
             CHECK_GL_ERROR(glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(uint32_t) * obj_faces.size() * 3, obj_faces.data(), GL_STATIC_DRAW));
@@ -721,7 +651,7 @@ int main(int argc, char* argv[]) {
 		// Use our program.
 		CHECK_GL_ERROR(glUseProgram(program_id));
 		// Draw our triangles.
-        CHECK_GL_ERROR(glBindVertexArray(g_array_objects[kGeometryVao]));
+        CHECK_GL_ERROR(glBindVertexArray(g_array_objects[kMengerVao]));
 
 		// Pass uniforms in.
 		CHECK_GL_ERROR(glUniformMatrix4fv(projection_matrix_location, 1, GL_FALSE,
@@ -829,7 +759,8 @@ int main(int argc, char* argv[]) {
 		// smooth
 		if (smooth_ctrl) {
 			// time delta smoothing
-	        elapsed = 0.1 * 5;
+	        elapsed /= 2 * 10000000;
+            std::cout << elapsed << std::endl;
 	        if ((int) g_should_move) {
 	            g_camera.move(elapsed, (int) g_should_move);
 	        }
