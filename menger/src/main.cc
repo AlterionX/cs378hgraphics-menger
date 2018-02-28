@@ -17,6 +17,7 @@
 #include "menger.h"
 #include "ocean.h"
 #include "sphere.h"
+#include "ship.h"
 #include "camera.h"
 #include "shaders.h"
 
@@ -124,6 +125,8 @@ bool g_render_base = true;
 int g_init_wave = 0;
 bool g_wave_type = false;
 bool g_render_lights = false;
+
+bool g_launch_ships = false;
 
 auto g_lt = std::chrono::system_clock::now();
 
@@ -241,6 +244,8 @@ void KeyCallback(GLFWwindow* window,
         tidal_reset = true;
     } else if (key == GLFW_KEY_L && mods == GLFW_MOD_CONTROL && action == GLFW_RELEASE) {
         g_render_lights = !g_render_lights;
+    } else if (key == GLFW_KEY_L && action == GLFW_RELEASE) {
+        g_launch_ships = !g_launch_ships;
     } else if (key == GLFW_KEY_R && action == GLFW_PRESS) {
         g_camera.reset();
     }
@@ -349,6 +354,7 @@ int main(int argc, char* argv[]) {
     // ships
     std::vector<glm::vec4> ship_vertices;
 	std::vector<glm::uvec3> ship_faces;
+    sphere::create_sphere(10.0, 10, 10, ship_vertices, ship_faces);
 
 	/*********************************************************/
 	/*** OpenGL: Context  ************************************/
@@ -587,8 +593,23 @@ int main(int argc, char* argv[]) {
     GET_UNIFORM_LOC(light, projection);
     GET_UNIFORM_LOC(light, view);
     GET_UNIFORM_LOC(light, model);
-    GET_UNIFORM_LOC(light, w_lpos);
     GET_UNIFORM_LOC(light, render_wireframe);
+
+    /*** light program ***/
+    std::cout << "Compiling ship program." << std::endl;
+	// create program
+	GLuint ship_program_id = shaders::ship_sss.compile().create_program();
+	// bind attributes
+	CHECK_GL_ERROR(glBindAttribLocation(ship_program_id, 0, "w_pos"));
+	CHECK_GL_ERROR(glBindFragDataLocation(ship_program_id, 0, "frag_col"));
+	glLinkProgram(ship_program_id);
+	CHECK_GL_PROGRAM_ERROR(ship_program_id);
+	// unifrom locations
+    GET_UNIFORM_LOC(ship, projection);
+    GET_UNIFORM_LOC(ship, view);
+    GET_UNIFORM_LOC(ship, model);
+    GET_UNIFORM_LOC(ship, w_lpos);
+    GET_UNIFORM_LOC(ship, render_wireframe);
 
 
 	/*********************************************************/
@@ -610,6 +631,23 @@ int main(int argc, char* argv[]) {
     auto ocean_kd = glm::vec3(0.1, 0.1, 0.3);
     auto ocean_ks = glm::vec3(1.0, 1.0, 1.0);
     auto ocean_alpha = 20.0f;
+
+    //ocean data group
+    fluid::ocean_surf_params ocean_data {
+        std::vector<fluid::wave_params> {},
+        fluid::gaussian_params {
+            glm::vec2(),
+            glm::vec2(),
+            0.0,
+            0.0
+        },
+        std::vector<fluid::wave_packet> {}
+    };
+
+    // Ship
+    std::vector<ship::instance> ship_instances {{
+        //ship::instance {false, glm::vec2(), glm::vec2()}
+    }};
 
 	while (!glfwWindowShouldClose(window)) {
 
@@ -638,19 +676,16 @@ int main(int argc, char* argv[]) {
 
 		// Switch to the Geometry VAO.
 		if (g_menger && g_menger->is_dirty()) {
-            CHECK_GL_ERROR(glBindVertexArray(g_array_objects[kGeometryVao]));
-
             g_menger->generate_geometry(obj_vertices, obj_faces);
 			g_menger->set_clean();
+
             obj_vertices.push_back(light_position + glm::vec4(0.01f, 0.01f, 0.01f, 1.0f));
             obj_vertices.push_back(light_position + glm::vec4(-0.01f, -0.01f, 0.01f, 1.0f));
             obj_vertices.push_back(light_position + glm::vec4(0.01f, -0.01f, 0.01f, 1.0f));
             obj_faces.push_back(glm::uvec3(obj_vertices.size() - 3, obj_vertices.size() - 2, obj_vertices.size() - 1));
 
-			CHECK_GL_ERROR(glBindBuffer(GL_ARRAY_BUFFER, g_buffer_objects[kGeometryVao][kVertexBuffer]));
-			CHECK_GL_ERROR(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, g_buffer_objects[kGeometryVao][kIndexBuffer]));
+            CHECK_GL_ERROR(glBindVertexArray(g_array_objects[kGeometryVao]));
 
-            // Upload vertex data.
             CHECK_GL_ERROR(glBufferData(GL_ARRAY_BUFFER, sizeof(float) * obj_vertices.size() * 4, obj_vertices.data(), GL_STATIC_DRAW));
             CHECK_GL_ERROR(glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(uint32_t) * obj_faces.size() * 3, obj_faces.data(), GL_STATIC_DRAW));
 		}
@@ -683,7 +718,6 @@ int main(int argc, char* argv[]) {
         glPolygonMode(GL_FRONT_AND_BACK, g_render_base ? GL_FILL : GL_LINE);
 
 		/*** Menger Program ***/
-
 		// Use our program.
 		CHECK_GL_ERROR(glUseProgram(program_id));
 		// Draw our triangles.
@@ -754,7 +788,6 @@ int main(int argc, char* argv[]) {
             // set program + vao
 			CHECK_GL_ERROR(glUseProgram(light_program_id));
 			CHECK_GL_ERROR(glBindVertexArray(g_array_objects[kLightVao]));
-
 			// pass uniforms
 			CHECK_GL_ERROR(glUniformMatrix4fv(ULNAME(light, projection), 1, GL_FALSE,
 				&projection_matrix[0][0]));
@@ -762,12 +795,26 @@ int main(int argc, char* argv[]) {
 				&view_matrix[0][0]));
             CHECK_GL_ERROR(glUniformMatrix4fv(ULNAME(light, model), 1, GL_FALSE,
 				&light_model_matrix[0][0]));
-			CHECK_GL_ERROR(glUniform4fv(ULNAME(light, w_lpos), 1, &light_position[0]));
             CHECK_GL_ERROR(glUniform1i(ULNAME(light, render_wireframe), g_render_wireframe));
-
-
 			// Render lights
     		CHECK_GL_ERROR(glDrawElements(GL_TRIANGLES, obj_faces.size() * 3, GL_UNSIGNED_INT, 0));
+        }
+
+        if (g_launch_ships) {
+            // set program + vao
+            CHECK_GL_ERROR(glUseProgram(ship_program_id));
+            CHECK_GL_ERROR(glBindVertexArray(g_array_objects[kShipVao]));
+            for (auto& instance : ship_instances) {
+                auto ship_model_matrix = ship::model_matrix(since_start * -0.5, instance, ocean_data);
+                // pass uniforms
+                CHECK_GL_ERROR(glUniformMatrix4fv(ULNAME(ship, projection), 1, GL_FALSE, &projection_matrix[0][0]));
+                CHECK_GL_ERROR(glUniformMatrix4fv(ULNAME(ship, view), 1, GL_FALSE, &view_matrix[0][0]));
+                CHECK_GL_ERROR(glUniformMatrix4fv(ULNAME(ship, model), 1, GL_FALSE, &ship_model_matrix[0][0]));
+                CHECK_GL_ERROR(glUniform4fv(ULNAME(ship, w_lpos), 1, &light_position[0]));
+                CHECK_GL_ERROR(glUniform1i(ULNAME(ship, render_wireframe), g_render_wireframe));
+                // Render ship
+                CHECK_GL_ERROR(glDrawElements(GL_TRIANGLES, obj_faces.size() * 3, GL_UNSIGNED_INT, 0));
+            }
         }
 
 		/*********************************************************/

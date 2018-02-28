@@ -348,6 +348,31 @@ void main() {
     frag_col.a = 1.0;
 })zzz";
 
+/*** frag col = norm ^ 2 w/ light incidence ***/
+const char* wireframe_orient_fs =
+R"zzz(#version 330 core
+uniform mat4 view;
+uniform bool render_wireframe;
+
+flat in vec4 v_norm;
+flat in vec4 w_norm;
+
+in vec4 v_from_ldir;
+in vec3 edge_dist;
+
+out vec4 frag_col;
+
+void main() {
+    if (render_wireframe && min(min(edge_dist[0], edge_dist[1]), edge_dist[2]) < 0.02) {
+        frag_col = vec4(0.0, 1.0, 0.0, 1.0);
+    } else {
+        vec4 base_col = clamp(w_norm * w_norm, 0.0, 1.0);
+        float intensity = clamp(-dot(v_from_ldir, v_norm), 0.0, 1.0);
+        frag_col = clamp(intensity * base_col, 0.0, 1.0);
+        frag_col.a = 1.0;
+    }
+})zzz";
+
 /*** frag col = checkboard on xz plane w/ light incidence ***/
 const char* wireframe_checker_fs =
 R"zzz(#version 330 core
@@ -464,3 +489,9 @@ const char* light_tcs = nullptr;
 const char* light_tes = nullptr;
 const char* light_gs = wireframe_gs;
 const char* light_fs = emissive_fs;
+
+const char* ship_vs = cob_model_vs;
+const char* ship_tcs = nullptr;
+const char* ship_tes = nullptr;
+const char* ship_gs = wireframe_gs;
+const char* ship_fs = wireframe_orient_fs;

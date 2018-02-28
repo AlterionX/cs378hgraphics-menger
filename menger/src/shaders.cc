@@ -60,4 +60,5 @@ namespace shaders {
     GLSSS floor_sss ARRAY_INIT_SSS(floor);
     GLSSS ocean_sss ARRAY_INIT_SSS(ocean);
     GLSSS light_sss ARRAY_INIT_SSS(light);
+    GLSSS ship_sss ARRAY_INIT_SSS(ship);
 }

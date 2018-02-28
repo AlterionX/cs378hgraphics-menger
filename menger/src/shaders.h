@@ -45,4 +45,5 @@ namespace shaders {
     extern GLSSS floor_sss;
     extern GLSSS ocean_sss;
     extern GLSSS light_sss;
+    extern GLSSS ship_sss;
 }
