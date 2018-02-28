@@ -20,7 +20,10 @@ void Camera::change_mode(void) {
 glm::mat4 Camera::get_view_matrix() const {
     auto right = glm::normalize(glm::cross(look_, up_));
     auto true_up = glm::normalize(glm::cross(right, look_));
-    return glm::translate(glm::mat4(glm::transpose(glm::mat3(right, true_up, -look_))), eye_*-1.0f);
+    return glm::translate(
+        glm::mat4(glm::transpose(glm::mat3(right, true_up, -look_))),
+        eye_ * -1.0f
+    );
 }
 
 void Camera::mouse_rot(double dx, double dy) {
