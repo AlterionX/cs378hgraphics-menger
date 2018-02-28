@@ -523,6 +523,7 @@ int main(int argc, char* argv[]) {
     GET_UNIFORM_LOC(light, projection);
     GET_UNIFORM_LOC(light, view);
     GET_UNIFORM_LOC(light, model);
+    GET_UNIFORM_LOC(light, w_lpos);
     GET_UNIFORM_LOC(light, render_wireframe);
 
     /*** light program ***/
@@ -690,10 +691,8 @@ int main(int argc, char* argv[]) {
 			CHECK_GL_ERROR(glBindVertexArray(g_array_objects[kOceanVao]));
 
 			// pass uniforms
-			CHECK_GL_ERROR(glUniformMatrix4fv(ULNAME(ocean, projection), 1, GL_FALSE,
-				&projection_matrix[0][0]));
-			CHECK_GL_ERROR(glUniformMatrix4fv(ULNAME(ocean, view), 1, GL_FALSE,
-				&view_matrix[0][0]));
+			CHECK_GL_ERROR(glUniformMatrix4fv(ULNAME(ocean, projection), 1, GL_FALSE, &projection_matrix[0][0]));
+			CHECK_GL_ERROR(glUniformMatrix4fv(ULNAME(ocean, view), 1, GL_FALSE, &view_matrix[0][0]));
 			CHECK_GL_ERROR(glUniform4fv(ULNAME(ocean, w_lpos), 1, &light_position[0]));
 			CHECK_GL_ERROR(glUniform1f(ULNAME(ocean, tcs_in_deg), tcs_in_deg));
 			CHECK_GL_ERROR(glUniform1f(ULNAME(ocean, tcs_out_deg), tcs_out_deg));
@@ -715,18 +714,13 @@ int main(int argc, char* argv[]) {
 		}
 
         if (g_render_lights) {
-            // set program + vao
 			CHECK_GL_ERROR(glUseProgram(light_program_id));
 			CHECK_GL_ERROR(glBindVertexArray(g_array_objects[kLightVao]));
-			// pass uniforms
-			CHECK_GL_ERROR(glUniformMatrix4fv(ULNAME(light, projection), 1, GL_FALSE,
-				&projection_matrix[0][0]));
-			CHECK_GL_ERROR(glUniformMatrix4fv(ULNAME(light, view), 1, GL_FALSE,
-				&view_matrix[0][0]));
-            CHECK_GL_ERROR(glUniformMatrix4fv(ULNAME(light, model), 1, GL_FALSE,
-				&light_model_matrix[0][0]));
+			CHECK_GL_ERROR(glUniformMatrix4fv(ULNAME(light, projection), 1, GL_FALSE, &projection_matrix[0][0]));
+			CHECK_GL_ERROR(glUniformMatrix4fv(ULNAME(light, view), 1, GL_FALSE, &view_matrix[0][0]));
+            CHECK_GL_ERROR(glUniformMatrix4fv(ULNAME(light, model), 1, GL_FALSE, &light_model_matrix[0][0]));
+            CHECK_GL_ERROR(glUniform4fv(ULNAME(light, w_lpos), 1, &light_position[0]));
             CHECK_GL_ERROR(glUniform1i(ULNAME(light, render_wireframe), g_render_wireframe));
-			// Render lights
     		CHECK_GL_ERROR(glDrawElements(GL_TRIANGLES, obj_faces.size() * 3, GL_UNSIGNED_INT, 0));
         }
 
@@ -760,7 +754,6 @@ int main(int argc, char* argv[]) {
 		if (smooth_ctrl) {
 			// time delta smoothing
 	        elapsed /= 2 * 10000000;
-            std::cout << elapsed << std::endl;
 	        if ((int) g_should_move) {
 	            g_camera.move(elapsed, (int) g_should_move);
 	        }

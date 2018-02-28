@@ -1,9 +1,8 @@
 #include "sphere.h"
 
+#include <glm/gtc/constants.hpp>
 #include <glm/gtx/string_cast.hpp>
 #include <iostream>
-
-#define PI 3.14159265359
 
 // {upper, lower}
 std::vector<glm::uvec2> base_shifts[2] = {std::vector<glm::uvec2>({
@@ -18,9 +17,9 @@ std::vector<glm::uvec2> base_shifts[2] = {std::vector<glm::uvec2>({
 
 void sphere::create_sphere(float radius, int spoke_cnt, int tier_cnt, std::vector<glm::vec4>& obj_vertices, std::vector<glm::uvec3>& obj_faces) {
     for (int hu = 1; hu < tier_cnt - 1; ++hu) { // angle about z-axis
-        double pitch_angle = hu * PI / (tier_cnt - 1) + PI / 2;
+        double pitch_angle = hu * glm::pi<double>() / (tier_cnt - 1) + glm::pi<double>() / 2;
         for (int tu = 0; tu < spoke_cnt; ++tu) { // angle about y-axis
-            double yaw_angle = tu * 2 * PI / spoke_cnt;
+            double yaw_angle = tu * 2 * glm::pi<double>() / spoke_cnt;
             if (hu != tier_cnt - 2) {
                 // create the two tris
                 auto upper_face = glm::uvec3(
@@ -34,9 +33,7 @@ void sphere::create_sphere(float radius, int spoke_cnt, int tier_cnt, std::vecto
                     hu * spoke_cnt + tu
                 );
                 obj_faces.push_back(upper_face);
-                std::cout << glm::to_string(obj_faces.back()) << std::endl;
                 obj_faces.push_back(bottom_face);
-                std::cout << glm::to_string(obj_faces.back()) << std::endl;
             }
             obj_vertices.push_back(glm::vec4(
                 radius * glm::cos(pitch_angle) * glm::sin(yaw_angle),
@@ -44,14 +41,11 @@ void sphere::create_sphere(float radius, int spoke_cnt, int tier_cnt, std::vecto
                 radius * glm::cos(pitch_angle) * glm::cos(yaw_angle),
                 1.0f
             ));
-            std::cout << glm::to_string(obj_vertices.back()) << std::endl;
         }
     }
     // add caps
     obj_vertices.push_back(glm::vec4(0.0f, radius, 0.0f, 1.0f));
-    std::cout << glm::to_string(obj_vertices.back()) << std::endl;
     obj_vertices.push_back(glm::vec4(0.0f, -radius, 0.0f, 1.0f));
-    std::cout << glm::to_string(obj_vertices.back()) << std::endl;
     // faces for those caps
     for (int tu = 0; tu < spoke_cnt; ++tu) {
         auto topface = glm::uvec3(
@@ -64,8 +58,6 @@ void sphere::create_sphere(float radius, int spoke_cnt, int tier_cnt, std::vecto
             obj_vertices.size() - 1
         );
         obj_faces.push_back(topface);
-        std::cout << glm::to_string(obj_faces.back()) << std::endl;
         obj_faces.push_back(botface);
-        std::cout << glm::to_string(obj_faces.back()) << std::endl;
     }
 }

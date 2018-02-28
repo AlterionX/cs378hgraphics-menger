@@ -35,14 +35,17 @@ const char* cob_model_vs =
 R"zzz(#version 430 core
 uniform mat4 view;
 uniform mat4 model;
+uniform vec4 w_lpos;
 
 in vec4 w_pos;
 
+out vec4 v_v_from_ldir;
 out vec4 v_w_pos;
 
 void main() {
 	v_w_pos = model * w_pos;
-    gl_Position = view * model * w_pos;
+    gl_Position = view * v_w_pos;
+    v_v_from_ldir = view * (v_w_pos - w_lpos);
 })zzz";
 
 /*********************************************************/
