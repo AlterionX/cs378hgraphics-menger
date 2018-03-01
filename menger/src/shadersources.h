@@ -1,6 +1,100 @@
 // vs -> tcs -> tes -> gs -> fs
 // world -> world -> world -> camera -> projection
 
+#include <string>
+
+/*********************************************************/
+/*** helpers *********************************************/
+
+const char* tidal_fns = 
+R"zzz(
+/* prereqs: tidal_time */
+#define M_PI 3.1415926535897932384626433832795
+
+/* gaussian tidal wave */
+float moving_gaussian_offset(vec2 pos, vec2 dir, vec2 center, float A, float sigma) {
+    vec2 n_c = dir * tidal_time + center;
+    float dist = distance(pos, n_c);
+    return A * exp(-(dist * dist) / (2 * sigma * sigma));
+}
+vec4 tidal_offset(float x, float y) {
+    vec2 dir =      vec2(1, 0);
+    vec2 center =   vec2(0, 0);
+    float A =       2.0;
+    float sigma =   1.0;
+    return vec4(0.0f, moving_gaussian_offset(vec2(x, y), dir, center, A, sigma), 0.0f, 0.0f);
+}
+vec3 moving_gaussian_normal(vec2 pos, vec2 dir, vec2 center, float A, float sigma) {
+    vec2 n_c = dir * tidal_time + center;
+    float dist = distance(pos, n_c);
+    float dx = A * (n_c[0] - pos[0]) * exp(-(dist * dist) / (2 * sigma * sigma)) / (pow(sigma, 2));
+    float dy = A * (n_c[1] - pos[1]) * exp(-(dist * dist) / (2 * sigma * sigma)) / (pow(sigma, 2));
+    return vec3(-dx, 1, dy);
+}
+vec4 tidal_normal(float x, float y) {
+    vec2 dir =      vec2(1, 0);
+    vec2 center =   vec2(0, 0);
+    float A =       2.0;
+    float sigma =   1.0;
+    return vec4(moving_gaussian_normal(vec2(x, y), dir, center, A, sigma), 0.0);
+}
+)zzz";
+
+const char* wave_fns = 
+R"zzz(
+/* prereqs: wave_time */
+#define M_PI 3.1415926535897932384626433832795
+
+/* regular small waves */
+float single_wave_offset(vec2 wave_dir, vec2 pos, float A, float freq, float phase, float k) {
+    return 2 * A * pow((sin(dot(wave_dir, pos) * freq + wave_time * phase) + 1) / 2, k);
+}
+
+vec4 wave_offset(float x, float y) {
+    float A = 0.5;
+    float freq = 0.5, f;
+    float phase = 0.01 * freq;
+    float shift = 5;
+
+    float w_offset = 0.0;
+    int i=0;
+
+    vec2 wave_dir = vec2(1, 1);    
+    for(i=0, f=freq; i<2; i++, f *= 2)
+        w_offset += single_wave_offset(wave_dir, vec2(x, y), A, f, phase, shift);
+
+    wave_dir = vec2(1, -1);
+    for(i=0, f=freq; i<2; i++, f *= 2)
+        w_offset += single_wave_offset(wave_dir, vec2(x, y), A, f, phase, shift);
+    return vec4(0.0f, w_offset, 0.0f, 0.0f);
+}
+vec4 single_wave_normal(vec2 wave_dir, vec2 pos, float A, float freq, float phase, float k) {
+    float dx = k * wave_dir[0] * freq * A * pow((sin(dot(wave_dir, pos) * freq + wave_time * phase) + 1) / 2, k - 1) * cos(dot(wave_dir, pos) * freq + wave_time * phase);
+    float dy = k * wave_dir[1] * freq * A * pow((sin(dot(wave_dir, pos) * freq + wave_time * phase) + 1) / 2, k - 1) * cos(dot(wave_dir, pos) * freq + wave_time * phase);
+    return vec4(-dx, 1, -dy, 0.0);
+}
+vec4 wave_normal(float x, float y) {
+    float A = 0.1;
+    float freq = 0.5, f;
+    float phase = 0.01 * freq;
+    float shift = 5;
+
+    vec4 w_normal = vec4(0.0);
+    int i=0;
+
+    vec2 wave_dir = vec2(1, 1);
+    for(i=0, f=freq; i<2; i++, f *= 2)
+        w_normal += single_wave_normal(wave_dir, vec2(x, y), A, f, phase, shift);
+
+    wave_dir = vec2(1, -1);
+    for(i=0, f=freq; i<2; i++, f *= 2)
+        w_normal += single_wave_normal(wave_dir, vec2(x, y), A, f, phase, shift);
+
+    return w_normal;
+}
+)zzz";
+
+
 /*********************************************************/
 /*** vertex **********************************************/
 
@@ -88,6 +182,54 @@ void main(void){
 })zzz";
 
 /*** quadrangle ***/
+const char* simple_quad_tcs =
+R"zzz(#version 430 core
+layout (vertices = 4) out;
+uniform float tcs_in_deg;
+uniform float tcs_out_deg;
+uniform float tidal_time;
+
+void main(void){
+    if (gl_InvocationID == 0){
+        // set tess levels
+        gl_TessLevelInner[0] = tcs_in_deg;
+        gl_TessLevelInner[1] = tcs_in_deg;
+
+        gl_TessLevelOuter[0] = tcs_out_deg;
+        gl_TessLevelOuter[1] = tcs_out_deg;
+        gl_TessLevelOuter[2] = tcs_out_deg;
+        gl_TessLevelOuter[3] = tcs_out_deg;
+    }
+    gl_out[gl_InvocationID].gl_Position = gl_in[gl_InvocationID].gl_Position;
+})zzz";
+const char* simple_quad_tes = 
+R"zzz(#version 430 core
+layout (quads) in;
+
+uniform mat4 view;
+uniform vec4 w_lpos;
+
+out vec4 v_v_from_ldir;
+out vec4 v_w_pos;
+out vec4 v_v_norm;
+
+void main(void) {
+    vec3 wp0 = vec3(gl_in[0].gl_Position.xyz);
+    vec3 wp1 = vec3(gl_in[1].gl_Position.xyz);
+    vec3 wp2 = vec3(gl_in[2].gl_Position.xyz);
+    vec4 w_norm = vec4(normalize(cross(wp2 - wp0, wp1 - wp0)), 0.0);
+
+    vec4 p1 = mix(gl_in[0].gl_Position, gl_in[3].gl_Position, gl_TessCoord.x);
+    vec4 p2 = mix(gl_in[1].gl_Position, gl_in[2].gl_Position, gl_TessCoord.x);
+    v_w_pos = mix(p1, p2, gl_TessCoord.y);
+
+    gl_Position = view * v_w_pos;
+    v_v_from_ldir = gl_Position - (view * w_lpos);
+    v_v_norm = view * w_norm;
+})zzz";
+
+
+/*** adative to tidal ***/
 const char* adaptive_quad_tcs =
 R"zzz(#version 430 core
 layout (vertices = 4) out;
@@ -128,7 +270,8 @@ void main(void){
     }
     gl_out[gl_InvocationID].gl_Position = gl_in[gl_InvocationID].gl_Position;
 })zzz";
-const char* tidal_quad_tes =
+
+std::string _tidal_quad_tes = std::string(
 R"zzz(#version 430 core
 layout (quads) in;
 uniform mat4 view;
@@ -144,59 +287,16 @@ out vec4 v_v_norm;
 #define TIDAL_LEFT_T 100000.0
 
 /* gaussian tidal wave */
-float moving_gaussian_offset(vec2 pos, vec2 dir, vec2 center, float A, float sigma) {
-    vec2 n_c = dir * tidal_time + center;
-    float dist = distance(pos, n_c);
-    return A * exp(-(dist * dist) / (2 * sigma * sigma)) / (2 * M_PI * sigma * sigma);
-}
-vec4 tidal_offset(float x, float y) {
-    vec2 dir =      vec2(0.001, 0);
-    vec2 center =   vec2(-10, 0);
-    float A =       40.0;
-    float sigma =   1.0;
-    return vec4(0.0f, moving_gaussian_offset(vec2(x, y), dir, center, A, sigma), 0.0f, 0.0f);
-}
-vec3 moving_gaussian_normal(vec2 pos, vec2 dir, vec2 center, float A, float sigma) {
-    vec2 n_c = dir * tidal_time + center;
-    float dist = distance(pos, n_c);
-    float dx = A * (n_c[0] - pos[0]) * exp(-(dist * dist) / (2 * sigma * sigma)) / (2 * M_PI * pow(sigma, 4));
-    float dy = A * (n_c[1] - pos[1]) * exp(-(dist * dist) / (2 * sigma * sigma)) / (2 * M_PI * pow(sigma, 4));
-    return vec3(-dx, 1, dy);
-}
-vec4 tidal_normal(float x, float y) {
-    vec2 dir =      vec2(0.001, 0);
-    vec2 center =   vec2(-10, 0);
-    float A =       40.0;
-    float sigma =   1.0;
-    return vec4(moving_gaussian_normal(vec2(x, y), dir, center, A, sigma), 0.0);
-}
+float moving_gaussian_offset(vec2 pos, vec2 dir, vec2 center, float A, float sigma);
+vec4 tidal_offset(float x, float y);
+vec3 moving_gaussian_normal(vec2 pos, vec2 dir, vec2 center, float A, float sigma);
+vec4 tidal_normal(float x, float y);
 
 /* regular small waves */
-float single_wave_offset(vec2 wave_dir, vec2 pos, float A, float freq, float phase, float k) {
-    return 2 * A * pow((sin(dot(wave_dir, pos) * freq + wave_time * phase) + 1) / 2, k);
-}
-
-vec4 wave_offset(float x, float y) {
-    vec2 wave_dir = vec2(1, 1);
-    float A = 0.5;
-    float freq = 0.5;
-    float phase = -0.005 * freq;
-    float shift = 5;
-    return vec4(0.0f, single_wave_offset(wave_dir, vec2(x, y), A, freq, phase, shift), 0.0f, 0.0f);
-}
-vec4 single_wave_normal(vec2 wave_dir, vec2 pos, float A, float freq, float phase, float k) {
-    float dx = k * wave_dir[0] * freq * A * pow((sin(dot(wave_dir, pos) * freq + wave_time * phase) + 1) / 2, k - 1) * cos(dot(wave_dir, pos) * freq + wave_time * phase);
-    float dy = k * wave_dir[1] * freq * A * pow((sin(dot(wave_dir, pos) * freq + wave_time * phase) + 1) / 2, k - 1) * cos(dot(wave_dir, pos) * freq + wave_time * phase);
-    return vec4(-dx, 1, -dy, 0.0);
-}
-vec4 wave_normal(float x, float y) {
-    vec2 wave_dir = vec2(1, 1);
-    float A = 0.5;
-    float freq = 0.5;
-    float phase = -0.005 * freq;
-    float shift = 5;
-    return single_wave_normal(wave_dir, vec2(x, y), A, freq, phase, shift);
-}
+float single_wave_offset(vec2 wave_dir, vec2 pos, float A, float freq, float phase, float k);
+vec4 wave_offset(float x, float y);
+vec4 single_wave_normal(vec2 wave_dir, vec2 pos, float A, float freq, float phase, float k);
+vec4 wave_normal(float x, float y);
 
 void main(void) {
 	vec4 p1 = mix(gl_in[0].gl_Position, gl_in[3].gl_Position, gl_TessCoord.x);
@@ -214,7 +314,8 @@ void main(void) {
 	gl_Position = view * w_pos;
     v_v_from_ldir = gl_Position - (view * w_lpos);
     v_v_norm = view * w_norm;
-})zzz";
+})zzz") + wave_fns + tidal_fns;
+const char* tidal_quad_tes = _tidal_quad_tes.c_str();
 
 /*********************************************************/
 /*** geometry ********************************************/
@@ -264,12 +365,18 @@ in vec4 v_v_from_ldir[];
 in vec4 v_w_pos[];
 
 flat out vec4 v_norm;
+flat out vec4 w_norm;
 
 out vec4 v_from_ldir;
 out vec4 w_pos;
 out vec3 edge_dist;
 
 void main() {
+    vec3 wp0 = vec3(v_w_pos[0]);
+    vec3 wp1 = vec3(v_w_pos[1]);
+    vec3 wp2 = vec3(v_w_pos[2]);
+    w_norm = vec4(normalize(cross(wp1 - wp0, wp2 - wp0)), 0.0);
+
     vec3 p0 = gl_in[0].gl_Position.xyz;
     vec3 p1 = gl_in[1].gl_Position.xyz;
     vec3 p2 = gl_in[2].gl_Position.xyz;
@@ -466,6 +573,82 @@ void main() {
     }
 })zzz";
 
+/*** frag col = checkboard on xz plane w/ light incidence ***/
+// from http://developer.download.nvidia.com/books/HTML/gpugems/gpugems_ch02.html
+std::string _wireframe_seabed_fs = std::string(
+R"zzz(#version 330 core
+uniform bool render_wireframe;
+uniform float tidal_time;
+uniform float wave_time;
+
+flat in vec4 v_norm;
+
+in vec4 v_from_ldir;
+in vec4 w_pos;
+in vec3 edge_dist;
+
+out vec4 frag_col;
+
+#define TIDAL_LEFT_T 100.0
+#define M_PI 3.1415926535897932384626433832795
+
+/* gaussian tidal wave */
+vec4 tidal_offset(float x, float y);
+vec4 tidal_normal(float x, float y);
+
+/* regular small waves */
+vec4 wave_offset(float x, float y);
+vec4 wave_normal(float x, float y);
+
+// float dist = (depth - dot(seabed_norm, lineP)) / (dot(seabed_norm, lineN));
+vec3 seabed_ocean_plane_intercept(vec3 seabed_pos, vec3 ocean_pos, 
+                                  vec3 ocean_norm, float sky_height) {
+    float dist = (sky_height - ocean_pos.y) / (ocean_norm.y);
+    return ocean_pos + ocean_norm * dist;
+}
+vec3 light_plane_col(float x, float y){
+    float dist = x*x + y*y;
+
+    float L = 3.0, R = 20.0;
+    float inten = 0.0;
+    if(dist < L)
+        inten = 1.0;
+    else if(dist < R)
+        inten = 1.0 - (dist - L) / (R - L);
+    return vec3(inten);
+}
+
+void main() {
+    if (render_wireframe && min(min(edge_dist[0], edge_dist[1]), edge_dist[2]) < 0.02) {
+        frag_col = vec4(0.0, 1.0, 0.0, 1.0);
+    } else {
+        // get ocean surface right above
+        vec4 ocean_w_pos = wave_offset(w_pos[0], w_pos[2]) + w_pos + 4.0; // TODO: fix depth
+        vec4 ocean_w_norm = wave_normal(w_pos[0], w_pos[2]);
+        if(tidal_time < TIDAL_LEFT_T) {
+            ocean_w_pos += tidal_offset(w_pos[0], w_pos[2]);
+            ocean_w_norm += tidal_normal(w_pos[0], w_pos[2]);
+        }
+
+        // get "light plane" map interception
+        vec3 plane_isect = seabed_ocean_plane_intercept(w_pos.xyz,
+                                ocean_w_pos.xyz, ocean_w_norm.xyz, 10.0);
+        vec3 caustics_col = light_plane_col(plane_isect.x, plane_isect.z);
+        // vec3 caustics_col = light_plane_col(ocean_w_norm.x, ocean_w_norm.z);
+        // vec3 caustics_col = light_plane_col(ocean_w_pos.x, ocean_w_pos.z);
+        // vec3 caustics_col = vec3(ocean_w_pos.x, 0.0, ocean_w_pos.z);
+
+        // local shading terms + sum up
+        vec3 ambient_col = vec3(0.20, 0.08, 0.02);
+        vec4 color = vec4(ambient_col + caustics_col, 1.0);
+
+        // account for point light
+        float intensity = clamp(dot(normalize(v_from_ldir), normalize(v_norm)), 0.0, 1.0);
+        frag_col = clamp(intensity * color, 0.0, 1.0);
+        frag_col = clamp(color, 0.0, 1.0);
+    }
+})zzz") + wave_fns + tidal_fns;
+const char* wireframe_seabed_fs = _wireframe_seabed_fs.c_str();
 
 /*** Specific pipelines ***/
 
@@ -498,3 +681,9 @@ const char* ship_tcs = nullptr;
 const char* ship_tes = nullptr;
 const char* ship_gs = wireframe_gs;
 const char* ship_fs = wireframe_orient_fs;
+
+const char* seabed_vs = passthrough_vs;
+const char* seabed_tcs = simple_quad_tcs;
+const char* seabed_tes = simple_quad_tes;
+const char* seabed_gs = wireframe_gs;
+const char* seabed_fs = wireframe_seabed_fs;
