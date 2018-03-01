@@ -1,0 +1,15 @@
+1. Your name and the name of your teammate (if any)
+
+	Benjamin Xu:			Stuff
+	Supawit Chockchowwat:	More stuff
+
+2. An explanation of any required features that you know are not working completely correctly, but would like to have considered for partial credit
+
+3. Anything the milestone-specific specs below ask you to include.
+    Smooth/multi controls (delta t smoothing)
+    Light displays: shows the light
+    Menger sponge now optional: press and release 'm' to remove the sponge while in ocean mode
+    Dynamic waves: Creates waves on the fly
+    Storminess: simulate a slightly stormy ocean
+    Boats: boats. They bob. They move. They stick to water like fly to flytape.
+    

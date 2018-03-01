@@ -267,8 +267,6 @@ void KeyCallback(GLFWwindow* window,
         } else if (g_storminess < 6) {
             g_storminess += 1;
         }
-        std::cout << mods << std::endl;
-        std::cout << g_storminess << std::endl;
 	} else if (key == GLFW_KEY_T && mods == GLFW_MOD_CONTROL && action == GLFW_RELEASE) {
         tidal_reset = true;
     } else if (key == GLFW_KEY_P && action == GLFW_RELEASE) {
