@@ -27,7 +27,7 @@ int window_width = 800, window_height = 600;
 enum { kVertexBuffer, kIndexBuffer, kNumVbos };
 
 // These are our VAOs.
-enum { kMengerVao, kFloorVao, kOceanVao, kLightVao, kShipVao, kNumVaos };
+enum { kMengerVao, kFloorVao, kOceanVao, kLightVao, kShipVao, kSeabedVao, kNumVaos };
 
 GLuint g_array_objects[kNumVaos];  // This will store the VAO descriptors.
 GLuint g_buffer_objects[kNumVaos][kNumVbos];  // These will store VBO descriptors.
@@ -51,28 +51,57 @@ CHECK_GL_ERROR(glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(uint32_t) * VEC_PREF
 /*********************************************************/
 /*** ??? *************************************************/
 
-void getFloor(std::vector<glm::vec4>& vertices, std::vector<glm::uvec3>& indices, int mode) {
-	float L=-10.0f, R=10.0f;
+void CreateTriangle(std::vector<glm::vec4>& vertices, std::vector<glm::uvec3>& indices) {
+	vertices.push_back(glm::vec4(-0.5f, -0.5f, -0.5f, 1.0f));
+	vertices.push_back(glm::vec4(0.5f, -0.5f, -0.5f, 1.0f));
+	vertices.push_back(glm::vec4(0.0f, 0.5f, -0.5f, 1.0f));
+	indices.push_back(glm::uvec3(0, 1, 2));
+}
+
+void getFloor(std::vector<glm::vec4>& vertices, std::vector<glm::uvec3>& indices, int mode, float height, float size) {
+	float L=-size, R=size;
 	if(mode == 0) {
 		// infinite floor
-		vertices.push_back(glm::vec4(0.0f, -2.0f, 0.0f, 1.0f));
-		vertices.push_back(glm::vec4(L, -2.0f, L, 0.0f));
-		vertices.push_back(glm::vec4(L, -2.0f, R, 0.0f));
-		vertices.push_back(glm::vec4(R, -2.0f, R, 0.0f));
-		vertices.push_back(glm::vec4(R, -2.0f, L, 0.0f));
+		vertices.push_back(glm::vec4(0.0f, height, 0.0f, 1.0f));
+		vertices.push_back(glm::vec4(L, height, L, 0.0f));
+		vertices.push_back(glm::vec4(L, height, R, 0.0f));
+		vertices.push_back(glm::vec4(R, height, R, 0.0f));
+		vertices.push_back(glm::vec4(R, height, L, 0.0f));
 		indices.push_back(glm::uvec3(0, 1, 2));
 		indices.push_back(glm::uvec3(0, 2, 3));
 		indices.push_back(glm::uvec3(0, 3, 4));
 		indices.push_back(glm::uvec3(0, 4, 1));
 	} else if(mode == 1) {
 		// two triangles
-		vertices.push_back(glm::vec4(L, -2.0f, L, 1.0f));
-		vertices.push_back(glm::vec4(L, -2.0f, R, 1.0f));
-		vertices.push_back(glm::vec4(R, -2.0f, R, 1.0f));
-		vertices.push_back(glm::vec4(R, -2.0f, L, 1.0f));
+		vertices.push_back(glm::vec4(L, height, L, 1.0f));
+		vertices.push_back(glm::vec4(L, height, R, 1.0f));
+		vertices.push_back(glm::vec4(R, height, R, 1.0f));
+		vertices.push_back(glm::vec4(R, height, L, 1.0f));
 		indices.push_back(glm::uvec3(3, 0, 1));
 		indices.push_back(glm::uvec3(1, 2, 3));
 	}
+}
+
+void getFloorQuad(std::vector<glm::vec4>& vertices, std::vector<glm::uvec4>& indices, float height, float size) {
+	vertices.clear();
+	indices.clear();
+
+	float L=-size, R=size;
+	int N = 16;
+	int index[N+1][N+1], nid=0;
+	for(int i=0; i<N+1; i++)
+		for(int j=0; j<N+1; j++) {
+			vertices.push_back(glm::vec4((R-L)*(i/float(N)) + L, height,
+											   (R-L)*(j/float(N)) + L, 1.0f));
+			index[i][j] = nid++;
+		}
+	for(int i=0; i<N-1; i++)
+		for(int j=0; j<N-1; j++) {
+			indices.push_back(glm::uvec4(index[i+1][j+1],
+										 index[i][j+1],
+										 index[i][j],
+										 index[i+1][j]));
+		}
 }
 
 void SaveObj(const std::string& file,
@@ -107,8 +136,12 @@ bool g_render_base = true;
 int g_init_wave = 0;
 bool g_wave_type = false;
 bool g_render_lights = false;
+bool g_show_menger = false;
 
 bool g_launch_ships = false;
+int g_storminess = 4;
+bool g_dynamic_waves = false;
+bool g_caustics = false;
 
 auto g_lt = std::chrono::system_clock::now();
 
@@ -202,10 +235,14 @@ void KeyCallback(GLFWwindow* window,
             g_should_pan_y = PanDirection::N;
         }
         if(!smooth_ctrl) g_camera.pan_y(ELAPSED, (int) g_should_pan_y);
-	} else if (key == GLFW_KEY_M && action == GLFW_PRESS && mods == GLFW_MOD_CONTROL) {
+	} else if (key == GLFW_KEY_M && action == GLFW_RELEASE && mods == GLFW_MOD_CONTROL) {
         smooth_ctrl = !smooth_ctrl;
     } else if (key == GLFW_KEY_C && action == GLFW_PRESS) {
-		g_camera.change_mode();
+        if (mods == GLFW_MOD_CONTROL) {
+            g_caustics = !g_caustics;
+        } else {
+    		g_camera.change_mode();
+        }
     } else if (key == GLFW_KEY_F && action == GLFW_PRESS) {
         if (mods == GLFW_MOD_CONTROL) {
             g_render_base = !g_render_base;
@@ -222,12 +259,26 @@ void KeyCallback(GLFWwindow* window,
 		tcs_in_deg += 1.0;
 	} else if (key == GLFW_KEY_O && mods == GLFW_MOD_CONTROL && action == GLFW_RELEASE) {
 		enable_ocean = !enable_ocean;
+    } else if (key == GLFW_KEY_O && action == GLFW_RELEASE) {
+        if (mods & GLFW_MOD_SHIFT) {
+            if (g_storminess > 0) {
+                g_storminess -= 1;
+            }
+        } else if (g_storminess < 6) {
+            g_storminess += 1;
+        }
+        std::cout << mods << std::endl;
+        std::cout << g_storminess << std::endl;
 	} else if (key == GLFW_KEY_T && mods == GLFW_MOD_CONTROL && action == GLFW_RELEASE) {
         tidal_reset = true;
+    } else if (key == GLFW_KEY_P && action == GLFW_RELEASE) {
+        g_dynamic_waves = !g_dynamic_waves;
     } else if (key == GLFW_KEY_L && mods == GLFW_MOD_CONTROL && action == GLFW_RELEASE) {
         g_render_lights = !g_render_lights;
     } else if (key == GLFW_KEY_L && action == GLFW_RELEASE) {
         g_launch_ships = !g_launch_ships;
+    } else if (key == GLFW_KEY_M && action == GLFW_RELEASE) {
+        g_show_menger = !g_show_menger;
     } else if (key == GLFW_KEY_R && action == GLFW_PRESS) {
         g_camera.reset();
     }
@@ -320,7 +371,12 @@ int main(int argc, char* argv[]) {
 	// floor
 	std::vector<glm::vec4> floor_vertices;
 	std::vector<glm::uvec3> floor_faces;
-	getFloor(floor_vertices, floor_faces, 1);
+	getFloor(floor_vertices, floor_faces, 1, -2.0f, 10.0f);
+
+	// floor
+	std::vector<glm::vec4> seabed_vertices;
+	std::vector<glm::uvec4> seabed_faces;
+	getFloorQuad(seabed_vertices, seabed_faces, -6.0f, 20.0f);
 
 	// ocean
     g_ocean = std::make_shared<Ocean>();
@@ -389,6 +445,8 @@ int main(int argc, char* argv[]) {
     BASE_VAO_SETUP(Light, 4, 3, light);
     /*** Ship Program(s) ***/
     BASE_VAO_SETUP(Ship, 4, 3, ship);
+    /*** Seabed Program ***/
+    BASE_VAO_SETUP(Seabed, 4, 4, seabed);
 
 	/*********************************************************/
 	/*** OpenGL: Shaders & Programs **************************/
@@ -495,6 +553,7 @@ int main(int argc, char* argv[]) {
     GET_UNIFORM_LOC(ocean, kd);
     GET_UNIFORM_LOC(ocean, ks);
     GET_UNIFORM_LOC(ocean, alpha);
+    GET_UNIFORM_LOC(ocean, transparency);
 
     /*** light program ***/
     std::cout << "Compiling light program." << std::endl;
@@ -534,6 +593,43 @@ int main(int argc, char* argv[]) {
     GET_UNIFORM_LOC(ship, kd);
     GET_UNIFORM_LOC(ship, ks);
     GET_UNIFORM_LOC(ship, alpha);
+    GET_UNIFORM_LOC(ship, transparency);
+
+	/*** Seabed Program ***/
+    std::cout << "Compiling seabed program." << std::endl;
+	// create program
+	GLuint seabed_program_id = shaders::seabed_sss.compile().create_program();
+
+	// bind attributes
+	CHECK_GL_ERROR(glBindAttribLocation(seabed_program_id, 0, "w_pos"));
+	CHECK_GL_ERROR(glBindFragDataLocation(seabed_program_id, 0, "frag_col"));
+	glLinkProgram(seabed_program_id);
+	CHECK_GL_PROGRAM_ERROR(seabed_program_id);
+
+	// unifrom locations
+    GET_UNIFORM_LOC(seabed, projection);
+    GET_UNIFORM_LOC(seabed, view);
+    GET_UNIFORM_LOC(seabed, w_lpos);
+    GET_UNIFORM_LOC(seabed, tcs_in_deg);
+    GET_UNIFORM_LOC(seabed, tcs_out_deg);
+    GET_UNIFORM_LOC(seabed, wave_time);
+    GET_UNIFORM_LOC(seabed, wave_type);
+    GET_UNIFORM_LOC(seabed, tidal_time);
+    GET_UNIFORM_LOC(seabed, render_wireframe);
+
+    GET_UNIFORM_LOC(seabed, wave_cnt);
+    GLint seabed_waves_locations[20][5];
+    for (int i = 0; i < 20; ++i) {
+        const char* names[] {"A", "L", "S", "K", "dir"};
+        for (int j = 0; j < 5; j++) {
+            seabed_waves_locations[i][j] = 0;
+            CHECK_GL_ERROR(seabed_waves_locations[i][j] = glGetUniformLocation(seabed_program_id, std::string("waves[" + std::to_string(i) + "]." + names[j]).c_str()));
+        }
+    }
+
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA,GL_ONE_MINUS_SRC_ALPHA);
+
 
 	/*********************************************************/
 	/*** OpenGL: Uniforms ************************************/
@@ -575,34 +671,42 @@ int main(int argc, char* argv[]) {
         },
         std::vector<fluid::wave_packet> {}
     };
+    double avg = 0;
+    for (auto& wave : ocean_data.wpars) {
+        avg += wave.life;
+        avg /= 2;
+    }
+    for (auto& wave : ocean_data.wpars) {
+        wave.time = avg / 2;
+    }
 
     // Ship
     std::vector<ship::instance> ship_instances {{
         ship::instance {
-            false, // side
-            glm::vec4(0.0f, -2.0f, 0.0f, 1.0f),
-            glm::vec4(0.0001f, 0.0f, 0.0f, 0.0f),
+            false, // side, currently unused
+            glm::vec4(-5.0f, -2.0f, 0.0f, 1.0f),
+            glm::vec4(0.001f, 0.0f, 0.0f, 0.0f),
             glm::vec4(0.0f, 0.0f, 0.0f, 0.0f),
             glm::vec3(0.0f, 0.0f, 0.0f),
             glm::vec3(0.0f, 0.0f, 0.0f)
         }, ship::instance {
             false, // side
             glm::vec4(1.0f, -2.0f, 1.0f, 1.0f),
-            glm::vec4(0.0001f, 0.0f, 0.0f, 0.0f),
+            glm::vec4(-0.001f, 0.0f, 0.0f, 0.0f),
             glm::vec4(0.0f, 0.0f, 0.0f, 0.0f),
             glm::vec3(0.0f, 1.0f, 0.0f),
             glm::vec3(0.0f, 0.0f, -1.0f)
         }, ship::instance {
             false, // side
             glm::vec4(1.0f, -2.0f, 5.0f, 1.0f),
-            glm::vec4(0.0001f, 0.0f, 0.0f, 0.0f),
+            glm::vec4(0.0f, 0.0f, 0.001f, 0.0f),
             glm::vec4(0.0f, 0.0f, 0.0f, 0.0f),
             glm::vec3(0.0f, 1.0f, 0.0f),
-            glm::vec3(0.0f, 0.0f, -1.0f)
+            glm::vec3(0.0f, 1.0f, -1.0f)
         }, ship::instance {
             false, // side
             glm::vec4(7.0f, -2.0f, 3.0f, 1.0f),
-            glm::vec4(0.0001f, 0.0f, 0.0f, 0.0f),
+            glm::vec4(0.001f, 0.0f, 0.0f, 0.0f),
             glm::vec4(0.0f, 0.0f, 0.0f, 0.0f),
             glm::vec3(0.0f, 1.0f, 0.0f),
             glm::vec3(0.0f, 0.0f, -1.0f)
@@ -617,7 +721,7 @@ int main(int argc, char* argv[]) {
 		auto ct = std::chrono::system_clock::now();
         double elapsed = (ct - g_lt).count();
         double since_start = std::chrono::duration_cast<std::chrono::milliseconds>(ct - start).count();
-        double tidal_since_start = since_start - ocean_data.gp.start;
+        double tidal_since_start = (since_start - ocean_data.gp.start) / 1000.0;
         g_lt = ct;
 
 		/*********************************************************/
@@ -664,22 +768,25 @@ int main(int argc, char* argv[]) {
         /** Universal settings ***/
         glPolygonMode(GL_FRONT_AND_BACK, g_render_base ? GL_FILL : GL_LINE);
 
-		/*** Menger Program ***/
-		// Use our program.
-		CHECK_GL_ERROR(glUseProgram(program_id));
-		// Draw our triangles.
-        CHECK_GL_ERROR(glBindVertexArray(g_array_objects[kMengerVao]));
+        if (!enable_ocean || g_show_menger) {
+        	/*** Menger Program ***/
+        	// Use our program.
+        	CHECK_GL_ERROR(glUseProgram(program_id));
+        	// Draw our triangles.
+            CHECK_GL_ERROR(glBindVertexArray(g_array_objects[kMengerVao]));
 
-		// Pass uniforms in.
-		CHECK_GL_ERROR(glUniformMatrix4fv(projection_matrix_location, 1, GL_FALSE, &projection_matrix[0][0]));
-		CHECK_GL_ERROR(glUniformMatrix4fv(view_matrix_location, 1, GL_FALSE, &view_matrix[0][0]));
-		CHECK_GL_ERROR(glUniform4fv(light_position_location, 1, &light_position[0]));
-        CHECK_GL_ERROR(glUniform1i(render_wireframe_location, g_render_wireframe));
+        	// Pass uniforms in.
+        	CHECK_GL_ERROR(glUniformMatrix4fv(projection_matrix_location, 1, GL_FALSE, &projection_matrix[0][0]));
+        	CHECK_GL_ERROR(glUniformMatrix4fv(view_matrix_location, 1, GL_FALSE, &view_matrix[0][0]));
+        	CHECK_GL_ERROR(glUniform4fv(light_position_location, 1, &light_position[0]));
+            CHECK_GL_ERROR(glUniform1i(render_wireframe_location, g_render_wireframe));
 
-        // draw
-		CHECK_GL_ERROR(glDrawElements(GL_TRIANGLES, obj_faces.size() * 3, GL_UNSIGNED_INT, 0));
+            // draw
+        	CHECK_GL_ERROR(glDrawElements(GL_TRIANGLES, obj_faces.size() * 3, GL_UNSIGNED_INT, 0));
+        }
 
-		if(!enable_ocean) { /*** Floor Program ***/
+		if(!enable_ocean) {
+             /*** Floor Program ***/
 			// set program + vao
 			CHECK_GL_ERROR(glUseProgram(floor_program_id));
 			CHECK_GL_ERROR(glBindVertexArray(g_array_objects[kFloorVao]));
@@ -697,11 +804,66 @@ int main(int argc, char* argv[]) {
 			// Render floor
 			CHECK_GL_ERROR(glPatchParameteri(GL_PATCH_VERTICES, 3));
 			CHECK_GL_ERROR(glDrawElements(GL_PATCHES, floor_faces.size() * 3, GL_UNSIGNED_INT, 0));
-		} else { /*** Ocean Program ***/
+
+		} else { /*** Ocean Mode ***/
+			/*** Seabed (caustics) ***/
+            if (g_caustics) {
+    			// set program + vao
+    			CHECK_GL_ERROR(glUseProgram(seabed_program_id));
+    			CHECK_GL_ERROR(glBindVertexArray(g_array_objects[kSeabedVao]));
+    			// pass uniforms
+    			CHECK_GL_ERROR(glUniformMatrix4fv(ULNAME(seabed, projection), 1, GL_FALSE,
+    				&projection_matrix[0][0]));
+    			CHECK_GL_ERROR(glUniformMatrix4fv(ULNAME(seabed, view), 1, GL_FALSE,
+    				&view_matrix[0][0]));
+    			CHECK_GL_ERROR(glUniform4fv(ULNAME(seabed, w_lpos), 1, &light_position[0]));
+    			CHECK_GL_ERROR(glUniform1f(ULNAME(seabed, tcs_in_deg), tcs_in_deg));
+    			CHECK_GL_ERROR(glUniform1f(ULNAME(seabed, tcs_out_deg), tcs_out_deg));
+                CHECK_GL_ERROR(glUniform1i(ULNAME(seabed, render_wireframe), g_render_wireframe));
+                CHECK_GL_ERROR(glUniform1f(ULNAME(seabed, wave_time), since_start));
+                CHECK_GL_ERROR(glUniform1i(ULNAME(seabed, wave_type), g_wave_type));
+                CHECK_GL_ERROR(glUniform1f(ULNAME(seabed, tidal_time), tidal_since_start));
+                CHECK_GL_ERROR(glUniform1i(ULNAME(seabed, wave_cnt), ocean_data.wpars.size()));
+                for (size_t i = 0; i < ocean_data.wpars.size(); ++i) {
+                    float cal = ocean_data.wpars[i].time / ocean_data.wpars[i].life;
+                    CHECK_GL_ERROR(glUniform1f(seabed_waves_locations[i][0], ocean_data.wpars[i].a * ((1 - cal) * cal)));
+                    CHECK_GL_ERROR(glUniform1f(seabed_waves_locations[i][1], ocean_data.wpars[i].l));
+                    CHECK_GL_ERROR(glUniform1f(seabed_waves_locations[i][2], ocean_data.wpars[i].s));
+                    CHECK_GL_ERROR(glUniform1f(seabed_waves_locations[i][3], ocean_data.wpars[i].k));
+                    CHECK_GL_ERROR(glUniform2fv(seabed_waves_locations[i][4], 1, &ocean_data.wpars[i].dir[0]));
+                }
+    			// Render floor
+    			CHECK_GL_ERROR(glPatchParameteri(GL_PATCH_VERTICES, 4));
+    			CHECK_GL_ERROR(glDrawElements(GL_PATCHES, seabed_faces.size() * 4, GL_UNSIGNED_INT, 0));
+            }
+
+            if (g_launch_ships) {
+                // set program + vao
+                CHECK_GL_ERROR(glUseProgram(ship_program_id));
+                CHECK_GL_ERROR(glBindVertexArray(g_array_objects[kShipVao]));
+                for (auto& instance : ship_instances) {
+                    auto ship_model_matrix = ship::model_matrix(since_start, instance, ocean_data);
+                    CHECK_GL_ERROR(glUniformMatrix4fv(ULNAME(ship, projection), 1, GL_FALSE, &projection_matrix[0][0]));
+                    CHECK_GL_ERROR(glUniformMatrix4fv(ULNAME(ship, view), 1, GL_FALSE, &view_matrix[0][0]));
+                    CHECK_GL_ERROR(glUniformMatrix4fv(ULNAME(ship, model), 1, GL_FALSE, &ship_model_matrix[0][0]));
+                    CHECK_GL_ERROR(glUniform4fv(ULNAME(ship, w_lpos), 1, &light_position[0]));
+                    CHECK_GL_ERROR(glUniform1i(ULNAME(ship, render_wireframe), g_render_wireframe));
+                    CHECK_GL_ERROR(glUniform1f(ULNAME(ship, cterm), cterm));
+                    CHECK_GL_ERROR(glUniform1f(ULNAME(ship, lterm), lterm));
+                    CHECK_GL_ERROR(glUniform1f(ULNAME(ship, qterm), qterm));
+                    CHECK_GL_ERROR(glUniform3fv(ULNAME(ship, ka), 1, &ship_ka[0]));
+                    CHECK_GL_ERROR(glUniform3fv(ULNAME(ship, kd), 1, &ship_kd[0]));
+                    CHECK_GL_ERROR(glUniform3fv(ULNAME(ship, ks), 1, &ship_ks[0]));
+                    CHECK_GL_ERROR(glUniform1f(ULNAME(ship, alpha), ship_alpha));
+                    CHECK_GL_ERROR(glUniform1f(ULNAME(ship, transparency), 1.0f));
+                    CHECK_GL_ERROR(glDrawElements(GL_TRIANGLES, ship_faces.size() * 3, GL_UNSIGNED_INT, 0));
+                }
+            }
+
+			/*** Ocean ***/
 			// set program + vao
 			CHECK_GL_ERROR(glUseProgram(ocean_program_id));
 			CHECK_GL_ERROR(glBindVertexArray(g_array_objects[kOceanVao]));
-
 			// pass uniforms
 			CHECK_GL_ERROR(glUniformMatrix4fv(ULNAME(ocean, projection), 1, GL_FALSE, &projection_matrix[0][0]));
 			CHECK_GL_ERROR(glUniformMatrix4fv(ULNAME(ocean, view), 1, GL_FALSE, &view_matrix[0][0]));
@@ -730,8 +892,8 @@ int main(int argc, char* argv[]) {
             CHECK_GL_ERROR(glUniform3fv(ULNAME(ocean, kd), 1, &ocean_kd[0]));
             CHECK_GL_ERROR(glUniform3fv(ULNAME(ocean, ks), 1, &ocean_ks[0]));
             CHECK_GL_ERROR(glUniform1f(ULNAME(ocean, alpha), ocean_alpha));
-
-			// Render floor
+            CHECK_GL_ERROR(glUniform1f(ULNAME(ocean, transparency), g_caustics ? (0.3 + ocean_data.storminess * 0.05) : 1.0f));
+			// Render
 			CHECK_GL_ERROR(glPatchParameteri(GL_PATCH_VERTICES, 4));
 			CHECK_GL_ERROR(glDrawElements(GL_PATCHES, ocean_faces.size() * 4, GL_UNSIGNED_INT, 0));
 		}
@@ -745,28 +907,6 @@ int main(int argc, char* argv[]) {
             CHECK_GL_ERROR(glUniform4fv(ULNAME(light, w_lpos), 1, &light_position[0]));
             CHECK_GL_ERROR(glUniform1i(ULNAME(light, render_wireframe), g_render_wireframe));
     		CHECK_GL_ERROR(glDrawElements(GL_TRIANGLES, light_faces.size() * 3, GL_UNSIGNED_INT, 0));
-        }
-
-        if (g_launch_ships && enable_ocean) {
-            // set program + vao
-            CHECK_GL_ERROR(glUseProgram(ship_program_id));
-            CHECK_GL_ERROR(glBindVertexArray(g_array_objects[kShipVao]));
-            for (auto& instance : ship_instances) {
-                auto ship_model_matrix = ship::model_matrix(since_start, instance, ocean_data);
-                CHECK_GL_ERROR(glUniformMatrix4fv(ULNAME(ship, projection), 1, GL_FALSE, &projection_matrix[0][0]));
-                CHECK_GL_ERROR(glUniformMatrix4fv(ULNAME(ship, view), 1, GL_FALSE, &view_matrix[0][0]));
-                CHECK_GL_ERROR(glUniformMatrix4fv(ULNAME(ship, model), 1, GL_FALSE, &ship_model_matrix[0][0]));
-                CHECK_GL_ERROR(glUniform4fv(ULNAME(ship, w_lpos), 1, &light_position[0]));
-                CHECK_GL_ERROR(glUniform1i(ULNAME(ship, render_wireframe), g_render_wireframe));
-                CHECK_GL_ERROR(glUniform1f(ULNAME(ship, cterm), cterm));
-                CHECK_GL_ERROR(glUniform1f(ULNAME(ship, lterm), lterm));
-                CHECK_GL_ERROR(glUniform1f(ULNAME(ship, qterm), qterm));
-                CHECK_GL_ERROR(glUniform3fv(ULNAME(ship, ka), 1, &ship_ka[0]));
-                CHECK_GL_ERROR(glUniform3fv(ULNAME(ship, kd), 1, &ship_kd[0]));
-                CHECK_GL_ERROR(glUniform3fv(ULNAME(ship, ks), 1, &ship_ks[0]));
-                CHECK_GL_ERROR(glUniform1f(ULNAME(ship, alpha), ship_alpha));
-                CHECK_GL_ERROR(glDrawElements(GL_TRIANGLES, ship_faces.size() * 3, GL_UNSIGNED_INT, 0));
-            }
         }
 
 		/*********************************************************/
@@ -796,7 +936,8 @@ int main(int argc, char* argv[]) {
             ocean_data.gp.start = since_start;
 		}
 
-        ocean_data.elapse_time(elapsed);
+        if (g_dynamic_waves) ocean_data.elapse_time(elapsed);
+        ocean_data.storminess = g_storminess;
         for (auto& instance : ship_instances) { // ships
             instance.simulate(elapsed, ship_instances);
         }

@@ -93,14 +93,14 @@ glm::mat4 ship::model_matrix(double t, ship::instance& inst, fluid::ocean_surf_p
 void ship::instance::simulate(double dt, std::vector<ship::instance>& fellow_ships) {
     // TODO change from no op
     this->w_pos += this->vel * float(dt / this->t_scale);
-    this->vel += glm::vec4(this->forw * glm::dot(this->forw, glm::vec3(this->acl)), 0.0f) * float(dt / this->t_scale);
+    /*this->vel += glm::vec4(this->forw * glm::dot(this->forw, glm::vec3(this->acl)), 0.0f) * float(dt / this->t_scale);
     float torque = glm::cross(this->forw, glm::vec3(this->acl))[2];
     std::cout << glm::to_string(glm::cross(this->forw, glm::vec3(this->acl))) << std::endl;
     if (torque > 0.001) {
         this->vel = glm::rotate(this->vel, torque * float(dt / this->t_scale), this->up);
     }
     this->forw = glm::normalize(this->vel);
-    std::cout << glm::to_string(this->vel) << std::endl;
+    std::cout << glm::to_string(this->vel) << std::endl;*/
     if (this->w_pos[0] > 20.0f) {
         this->w_pos[0] = -20.0f;
     } else if(this->w_pos[0] < -20.0f) {
@@ -111,7 +111,7 @@ void ship::instance::simulate(double dt, std::vector<ship::instance>& fellow_shi
     } else if (this->w_pos[2] < -20.0f) {
         this->w_pos[2] = 20.0f;
     }
-    this->acl = glm::vec4(0.0f, 0.0f, 0.0f, 0.0f);
+    /*this->acl = glm::vec4(0.0f, 0.0f, 0.0f, 0.0f);
     for (auto& fellow : fellow_ships) {
         if (this != &fellow && glm::distance(fellow.w_pos, this->w_pos) < 5.0f) {
             if (glm::dot(glm::cross(glm::vec3(this->vel), glm::vec3(fellow.w_pos - this->w_pos)), this->up) > 0.0f) {
@@ -121,5 +121,5 @@ void ship::instance::simulate(double dt, std::vector<ship::instance>& fellow_shi
             }
             break;
         }
-    }
+    }*/
 }

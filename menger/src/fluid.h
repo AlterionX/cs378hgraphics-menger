@@ -37,7 +37,7 @@ namespace fluid {
         gaussian_params gp;
         std::vector<wave_packet> wpacks;
 
-        unsigned int storminess = 2;
+        unsigned int storminess = 0;
 
         void elapse_time(double elapsed);
     };

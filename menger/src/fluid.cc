@@ -92,9 +92,9 @@ fluid::wave_params fluid::generate_wave(int storminess, int count) {
         // amp
         r % 10560 / 7500.0f * (storminess/2 + 1),
         // length
-        float(r % 5 + 2) / (storminess/2 + 1),
+        float(r % 5 + 2) / (storminess/2 + 1) / float(1.0 / (count + 1)),
         // speed
-        r % 500 / 100000.0f * (storminess/2 + 1),
+        r % 500 / 100000.0f * (storminess/2 + 1) * float(1.0 / (count + 1)),
         // steepness
         float(r % 5),
         // direction
