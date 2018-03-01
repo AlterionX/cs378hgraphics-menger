@@ -38,8 +38,7 @@ GLuint g_buffer_objects[kNumVaos][kNumVbos];  // These will store VBO descriptor
 #define GET_UNIFORM_LOC(PREFIX, NAME) GLint ULNAME(PREFIX, NAME) = 0; CHECK_GL_ERROR(ULNAME(PREFIX, NAME) = glGetUniformLocation(PREFIX ## _program_id, #NAME));
 
 #define VAO(NAME) k ## NAME ## Vao
-#define BASE_VAO_SETUP(NAME, VERT_DIMEN, FACE_VERTS, VEC_PREFIX) CHECK_GL_ERROR(glGenVertexArrays(kNumVaos, &g_array_objects[VAO(NAME)]));\
-CHECK_GL_ERROR(glBindVertexArray(g_array_objects[VAO(NAME)]));\
+#define BASE_VAO_SETUP(NAME, VERT_DIMEN, FACE_VERTS, VEC_PREFIX) CHECK_GL_ERROR(glBindVertexArray(g_array_objects[VAO(NAME)]));\
 CHECK_GL_ERROR(glGenBuffers(kNumVbos, &g_buffer_objects[VAO(NAME)][0]));\
 CHECK_GL_ERROR(glBindBuffer(GL_ARRAY_BUFFER, g_buffer_objects[VAO(NAME)][kVertexBuffer]));\
 CHECK_GL_ERROR(glBufferData(GL_ARRAY_BUFFER, sizeof(float) * VEC_PREFIX ## _vertices.size() * VERT_DIMEN, VEC_PREFIX ## _vertices.data(), GL_STATIC_DRAW));\
@@ -51,13 +50,6 @@ CHECK_GL_ERROR(glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(uint32_t) * VEC_PREF
 
 /*********************************************************/
 /*** ??? *************************************************/
-
-void CreateTriangle(std::vector<glm::vec4>& vertices, std::vector<glm::uvec3>& indices) {
-	vertices.push_back(glm::vec4(-0.5f, -0.5f, -0.5f, 1.0f));
-	vertices.push_back(glm::vec4(0.5f, -0.5f, -0.5f, 1.0f));
-	vertices.push_back(glm::vec4(0.0f, 0.5f, -0.5f, 1.0f));
-	indices.push_back(glm::uvec3(0, 1, 2));
-}
 
 void getFloor(std::vector<glm::vec4>& vertices, std::vector<glm::uvec3>& indices, int mode) {
 	float L=-10.0f, R=10.0f;
@@ -81,27 +73,6 @@ void getFloor(std::vector<glm::vec4>& vertices, std::vector<glm::uvec3>& indices
 		indices.push_back(glm::uvec3(3, 0, 1));
 		indices.push_back(glm::uvec3(1, 2, 3));
 	}
-}
-
-void getFloorQuad(std::vector<glm::vec4>& vertices, std::vector<glm::uvec4>& indices) {
-	vertices.clear();
-	indices.clear();
-
-	float L=-20.0f, R=20.0f;
-	int N = 16;
-	int index[N][N], nid=0;
-	for(int i=0; i<N+1; i++)
-		for(int j=0; j<N+1; j++) {
-			vertices.push_back(glm::vec4((R-L)*(i/float(N)) + L, -2.0f,
-											   (R-L)*(j/float(N)) + L, 1.0f));
-			index[i][j] = nid++;
-		}
-	for(int i=0; i<N-1; i++)
-		for(int j=0; j<N-1; j++)
-			indices.push_back(glm::uvec4(index[i+1][j],
-										index[i][j],
-										index[i+1][j+1],
-										index[i][j+1]));
 }
 
 void SaveObj(const std::string& file,
@@ -405,6 +376,9 @@ int main(int argc, char* argv[]) {
 	/*********************************************************/
 	/*** OpenGL: VAO + VBO  **********************************/
 
+    /** VAOs ***/
+    CHECK_GL_ERROR(glGenVertexArrays(kNumVaos, &g_array_objects[0]));
+
 	/*** Geometry Program ***/
     BASE_VAO_SETUP(Menger, 4, 3, obj);
 	/*** Floor Program ***/
@@ -618,28 +592,25 @@ int main(int argc, char* argv[]) {
             g_menger->generate_geometry(obj_vertices, obj_faces);
 			g_menger->set_clean();
 
-            obj_vertices.push_back(light_position + glm::vec4(0.01f, 0.01f, 0.01f, 1.0f));
-            obj_vertices.push_back(light_position + glm::vec4(-0.01f, -0.01f, 0.01f, 1.0f));
-            obj_vertices.push_back(light_position + glm::vec4(0.01f, -0.01f, 0.01f, 1.0f));
-            obj_faces.push_back(glm::uvec3(obj_vertices.size() - 3, obj_vertices.size() - 2, obj_vertices.size() - 1));
-
             CHECK_GL_ERROR(glBindVertexArray(g_array_objects[kMengerVao]));
 
             CHECK_GL_ERROR(glBindBuffer(GL_ARRAY_BUFFER, g_buffer_objects[kMengerVao][kVertexBuffer]));
-            CHECK_GL_ERROR(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, g_buffer_objects[kMengerVao][kIndexBuffer]));
-
             CHECK_GL_ERROR(glBufferData(GL_ARRAY_BUFFER, sizeof(float) * obj_vertices.size() * 4, obj_vertices.data(), GL_STATIC_DRAW));
+
+            CHECK_GL_ERROR(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, g_buffer_objects[kMengerVao][kIndexBuffer]));
             CHECK_GL_ERROR(glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(uint32_t) * obj_faces.size() * 3, obj_faces.data(), GL_STATIC_DRAW));
 		}
+        g_ocean->reset();
         if (enable_ocean && g_ocean->dirty()) {
+            std::cout << "wghat" << std::endl;
             CHECK_GL_ERROR(glBindVertexArray(g_array_objects[kOceanVao]));
 
             g_ocean->generate_geometry(ocean_vertices, ocean_faces);
 
             CHECK_GL_ERROR(glBindBuffer(GL_ARRAY_BUFFER, g_buffer_objects[kOceanVao][kVertexBuffer]));
-            CHECK_GL_ERROR(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, g_buffer_objects[kOceanVao][kIndexBuffer]));
-
             CHECK_GL_ERROR(glBufferData(GL_ARRAY_BUFFER, sizeof(float) * obj_vertices.size() * 4, ocean_vertices.data(), GL_STATIC_DRAW));
+
+            CHECK_GL_ERROR(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, g_buffer_objects[kOceanVao][kIndexBuffer]));
             CHECK_GL_ERROR(glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(uint32_t) * obj_faces.size() * 4, ocean_faces.data(), GL_STATIC_DRAW));
         }
 
