@@ -20,7 +20,7 @@ float moving_gaussian_offset(vec2 pos, vec2 dir, vec2 center, float A, float sig
 vec4 tidal_offset(float x, float y) {
     vec2 dir =      vec2(1, 0);
     vec2 center =   vec2(0, 0);
-    float A =       2.0;
+    float A =       5.0;
     float sigma =   1.0;
     return vec4(0.0f, moving_gaussian_offset(vec2(x, y), dir, center, A, sigma), 0.0f, 0.0f);
 }
@@ -34,7 +34,7 @@ vec3 moving_gaussian_normal(vec2 pos, vec2 dir, vec2 center, float A, float sigm
 vec4 tidal_normal(float x, float y) {
     vec2 dir =      vec2(1, 0);
     vec2 center =   vec2(0, 0);
-    float A =       2.0;
+    float A =       5.0;
     float sigma =   1.0;
     return vec4(moving_gaussian_normal(vec2(x, y), dir, center, A, sigma), 0.0);
 }
@@ -51,7 +51,7 @@ float single_wave_offset(vec2 wave_dir, vec2 pos, float A, float freq, float pha
 }
 
 vec4 wave_offset(float x, float y) {
-    float A = 0.5;
+    float A = 0.2;
     float freq = 0.5, f;
     float phase = 0.01 * freq;
     float shift = 5;
@@ -60,11 +60,11 @@ vec4 wave_offset(float x, float y) {
     int i=0;
 
     vec2 wave_dir = vec2(1, 1);    
-    for(i=0, f=freq; i<2; i++, f *= 2)
+    for(i=0, f=freq; i<3; i++, f *= 2)
         w_offset += single_wave_offset(wave_dir, vec2(x, y), A, f, phase, shift);
 
     wave_dir = vec2(1, -1);
-    for(i=0, f=freq; i<2; i++, f *= 2)
+    for(i=0, f=freq; i<3; i++, f *= 2)
         w_offset += single_wave_offset(wave_dir, vec2(x, y), A, f, phase, shift);
     return vec4(0.0f, w_offset, 0.0f, 0.0f);
 }
@@ -74,7 +74,7 @@ vec4 single_wave_normal(vec2 wave_dir, vec2 pos, float A, float freq, float phas
     return vec4(-dx, 1, -dy, 0.0);
 }
 vec4 wave_normal(float x, float y) {
-    float A = 0.1;
+    float A = 0.2;
     float freq = 0.5, f;
     float phase = 0.01 * freq;
     float shift = 5;
@@ -83,11 +83,11 @@ vec4 wave_normal(float x, float y) {
     int i=0;
 
     vec2 wave_dir = vec2(1, 1);
-    for(i=0, f=freq; i<2; i++, f *= 2)
+    for(i=0, f=freq; i<3; i++, f *= 2)
         w_normal += single_wave_normal(wave_dir, vec2(x, y), A, f, phase, shift);
 
     wave_dir = vec2(1, -1);
-    for(i=0, f=freq; i<2; i++, f *= 2)
+    for(i=0, f=freq; i<3; i++, f *= 2)
         w_normal += single_wave_normal(wave_dir, vec2(x, y), A, f, phase, shift);
 
     return w_normal;
@@ -211,21 +211,14 @@ uniform vec4 w_lpos;
 
 out vec4 v_v_from_ldir;
 out vec4 v_w_pos;
-out vec4 v_v_norm;
 
 void main(void) {
-    vec3 wp0 = vec3(gl_in[0].gl_Position.xyz);
-    vec3 wp1 = vec3(gl_in[1].gl_Position.xyz);
-    vec3 wp2 = vec3(gl_in[2].gl_Position.xyz);
-    vec4 w_norm = vec4(normalize(cross(wp2 - wp0, wp1 - wp0)), 0.0);
-
     vec4 p1 = mix(gl_in[0].gl_Position, gl_in[3].gl_Position, gl_TessCoord.x);
     vec4 p2 = mix(gl_in[1].gl_Position, gl_in[2].gl_Position, gl_TessCoord.x);
     v_w_pos = mix(p1, p2, gl_TessCoord.y);
 
     gl_Position = view * v_w_pos;
-    v_v_from_ldir = gl_Position - (view * w_lpos);
-    v_v_norm = view * w_norm;
+    v_v_from_ldir = (view * w_lpos) - gl_Position;
 })zzz";
 
 
@@ -284,7 +277,7 @@ out vec4 v_v_from_ldir;
 out vec4 v_v_norm;
 
 #define M_PI 3.1415926535897932384626433832795
-#define TIDAL_LEFT_T 100000.0
+#define TIDAL_LEFT_T 100.0
 
 /* gaussian tidal wave */
 float moving_gaussian_offset(vec2 pos, vec2 dir, vec2 center, float A, float sigma);
@@ -310,6 +303,8 @@ void main(void) {
         w_pos += tidal_offset(w_pos[0], w_pos[2]);
         w_norm += tidal_normal(w_pos[0], w_pos[2]);
     }
+    w_norm = normalize(w_norm);
+
 
 	gl_Position = view * w_pos;
     v_v_from_ldir = gl_Position - (view * w_lpos);
@@ -606,16 +601,16 @@ vec3 seabed_ocean_plane_intercept(vec3 seabed_pos, vec3 ocean_pos,
     float dist = (sky_height - ocean_pos.y) / (ocean_norm.y);
     return ocean_pos + ocean_norm * dist;
 }
-vec3 light_plane_col(float x, float y){
+float light_plane_col(float x, float y){
     float dist = x*x + y*y;
 
-    float L = 3.0, R = 20.0;
+    float L = 100.0, R = 5000.0, M = 1.0;
     float inten = 0.0;
     if(dist < L)
-        inten = 1.0;
+        inten = M;
     else if(dist < R)
-        inten = 1.0 - (dist - L) / (R - L);
-    return vec3(inten);
+        inten = M * (1.0 - (dist - L) / (R - L));
+    return inten;
 }
 
 void main() {
@@ -623,29 +618,27 @@ void main() {
         frag_col = vec4(0.0, 1.0, 0.0, 1.0);
     } else {
         // get ocean surface right above
-        vec4 ocean_w_pos = wave_offset(w_pos[0], w_pos[2]) + w_pos + 4.0; // TODO: fix depth
+        vec4 ocean_w_pos = wave_offset(w_pos[0], w_pos[2]) + w_pos + vec4(0.0, 4.0, 0.0, 1.0); // TODO: fix depth
         vec4 ocean_w_norm = wave_normal(w_pos[0], w_pos[2]);
         if(tidal_time < TIDAL_LEFT_T) {
             ocean_w_pos += tidal_offset(w_pos[0], w_pos[2]);
             ocean_w_norm += tidal_normal(w_pos[0], w_pos[2]);
         }
+        ocean_w_norm = normalize(ocean_w_norm);
 
         // get "light plane" map interception
         vec3 plane_isect = seabed_ocean_plane_intercept(w_pos.xyz,
-                                ocean_w_pos.xyz, ocean_w_norm.xyz, 10.0);
-        vec3 caustics_col = light_plane_col(plane_isect.x, plane_isect.z);
-        // vec3 caustics_col = light_plane_col(ocean_w_norm.x, ocean_w_norm.z);
-        // vec3 caustics_col = light_plane_col(ocean_w_pos.x, ocean_w_pos.z);
-        // vec3 caustics_col = vec3(ocean_w_pos.x, 0.0, ocean_w_pos.z);
+                                ocean_w_pos.xyz, ocean_w_norm.xyz, 1000.0);
+        float caustics_col = light_plane_col(plane_isect.x, plane_isect.z);
+        // float caustics_col = light_plane_col(plane_isect.x - w_pos[0], plane_isect.z  - w_pos[2]);
 
-        // local shading terms + sum up
+        // local shading terms
         vec3 ambient_col = vec3(0.20, 0.08, 0.02);
-        vec4 color = vec4(ambient_col + caustics_col, 1.0);
 
-        // account for point light
-        float intensity = clamp(dot(normalize(v_from_ldir), normalize(v_norm)), 0.0, 1.0);
-        frag_col = clamp(intensity * color, 0.0, 1.0);
-        frag_col = clamp(color, 0.0, 1.0);
+        // sum shading terms
+        float intensity = clamp(dot(normalize(v_from_ldir), normalize(v_norm)) * caustics_col, 0.0, 1.0);
+        frag_col = vec4(ambient_col + vec3(intensity), 1.0);
+        frag_col = clamp(frag_col, 0.0, 1.0);
     }
 })zzz") + wave_fns + tidal_fns;
 const char* wireframe_seabed_fs = _wireframe_seabed_fs.c_str();

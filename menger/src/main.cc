@@ -634,7 +634,7 @@ int main(int argc, char* argv[]) {
 		auto ct = std::chrono::system_clock::now();
         double elapsed = (ct - g_lt).count();
         double since_start = std::chrono::duration_cast<std::chrono::milliseconds>(ct - start).count();
-        double tidal_since_start = since_start - ocean_data.gp.start;
+        double tidal_since_start = (since_start - ocean_data.gp.start) / 1000.0;
         g_lt = ct;
 
 		/*********************************************************/
@@ -767,9 +767,9 @@ int main(int argc, char* argv[]) {
 			CHECK_GL_ERROR(glUniform1f(ULNAME(seabed, tcs_in_deg), tcs_in_deg));
 			CHECK_GL_ERROR(glUniform1f(ULNAME(seabed, tcs_out_deg), tcs_out_deg));
             CHECK_GL_ERROR(glUniform1i(ULNAME(seabed, render_wireframe), g_render_wireframe));
-            CHECK_GL_ERROR(glUniform1f(ULNAME(seabed, wave_time), since_start * -0.5));
+            CHECK_GL_ERROR(glUniform1f(ULNAME(seabed, wave_time), since_start));
             CHECK_GL_ERROR(glUniform1i(ULNAME(seabed, wave_type), g_wave_type));
-            CHECK_GL_ERROR(glUniform1f(ULNAME(seabed, tidal_time), tidal_since_start / 1000.0));
+            CHECK_GL_ERROR(glUniform1f(ULNAME(seabed, tidal_time), tidal_since_start));
 			// Render floor
 			CHECK_GL_ERROR(glPatchParameteri(GL_PATCH_VERTICES, 4));
 			CHECK_GL_ERROR(glDrawElements(GL_PATCHES, seabed_faces.size() * 4, GL_UNSIGNED_INT, 0));
