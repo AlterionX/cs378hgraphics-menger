@@ -112,6 +112,8 @@ void fluid::ocean_surf_params::elapse_time(double elapsed) {
         if (this->wpars[i].life < this->wpars[i].time) {
             if (i < 3 + this->storminess) {
                 this->wpars[i] = generate_wave(this->storminess, i);
+            } else {
+                this->wpars.erase(this->wpars.begin() + i);
             }
         }
     }

@@ -139,7 +139,7 @@ bool g_render_lights = false;
 bool g_show_menger = false;
 
 bool g_launch_ships = false;
-int g_storminess = 4;
+unsigned int g_storminess = 3;
 bool g_dynamic_waves = false;
 bool g_caustics = false;
 
@@ -657,11 +657,7 @@ int main(int argc, char* argv[]) {
 
     //ocean data group
     fluid::ocean_surf_params ocean_data {
-        std::vector<fluid::wave_params> {{
-            fluid::generate_wave(0, 1),
-            fluid::generate_wave(0, 2),
-            fluid::generate_wave(0, 3)
-        }},
+        std::vector<fluid::wave_params> {{}},
         fluid::gaussian_params {
             glm::vec2(0.001, 0),
             glm::vec2(-10, 0),
@@ -669,15 +665,17 @@ int main(int argc, char* argv[]) {
             1.0,
             -std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::minutes(1)).count()
         },
-        std::vector<fluid::wave_packet> {}
+        std::vector<fluid::wave_packet> {},
+        g_storminess
     };
-    double avg = 0;
+    ocean_data.elapse_time(1);
+    double wave_life_avg = 0;
     for (auto& wave : ocean_data.wpars) {
-        avg += wave.life;
-        avg /= 2;
+        wave_life_avg += wave.life;
+        wave_life_avg /= 2;
     }
     for (auto& wave : ocean_data.wpars) {
-        wave.time = avg / 2;
+        wave.time = wave_life_avg / 2;
     }
 
     // Ship
