@@ -6,9 +6,11 @@
 
 namespace fluid {
     struct wave_params {
-        float A;
+        wave_params(float a, float l, float s, float k, glm::vec2 dir);
+
+        float a;
         glm::vec2 dir;
-        float freq;
+        float wavel;
         float phase;
         float k;
     };
@@ -18,6 +20,7 @@ namespace fluid {
         glm::vec2 center;
         float A;
         float sigma;
+        double start;
     };
 
     struct wave_packet {
@@ -32,6 +35,7 @@ namespace fluid {
     };
 
     glm::vec4 simulate_offset(double t, glm::vec2& pos, ocean_surf_params& ospars);
+    glm::vec4 simulate_normal(double t, glm::vec2& pos, ocean_surf_params& ospars);
 }
 
 #endif

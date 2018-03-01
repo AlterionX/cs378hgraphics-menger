@@ -365,7 +365,7 @@ int main(int argc, char* argv[]) {
     // ships
     std::vector<glm::vec4> ship_vertices;
 	std::vector<glm::uvec3> ship_faces;
-    sphere::create_sphere(10.0, 10, 10, ship_vertices, ship_faces);
+    ship::generate_geometry(ship_vertices, ship_faces);
 
 	/*********************************************************/
 	/*** OpenGL: Context  ************************************/
@@ -551,7 +551,6 @@ int main(int argc, char* argv[]) {
 	float aspect = 0.0f;
 	float theta = 0.0f;
     auto start = std::chrono::system_clock::now();
-    auto tidal_start = std::chrono::system_clock::now() - std::chrono::minutes(1);
     g_lt = std::chrono::system_clock::now();
 
     // Material data
@@ -565,19 +564,28 @@ int main(int argc, char* argv[]) {
 
     //ocean data group
     fluid::ocean_surf_params ocean_data {
-        std::vector<fluid::wave_params> {},
+        std::vector<fluid::wave_params> {{
+            fluid::wave_params(0.5, 4, -0.005, 5, glm::vec2(1, 1))
+        }},
         fluid::gaussian_params {
-            glm::vec2(),
-            glm::vec2(),
-            0.0,
-            0.0
+            glm::vec2(0.001, 0),
+            glm::vec2(-10, 0),
+            40.0,
+            1.0,
+            std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::minutes(1)).count()
         },
         std::vector<fluid::wave_packet> {}
     };
 
     // Ship
     std::vector<ship::instance> ship_instances {{
-        //ship::instance {false, glm::vec2(), glm::vec2()}
+        ship::instance {
+            false, // side
+            glm::vec4(0.0f, -2.0f, 0.0f, 1.0f),
+            glm::vec4(0.0f, 0.0f, 0.0f, 0.0f),
+            glm::vec3(0.0f, 1.0f, 0.0f),
+            glm::vec3(0.0f, 0.0f, -1.0f)
+        }
     }};
 
 	while (!glfwWindowShouldClose(window)) {
@@ -588,7 +596,7 @@ int main(int argc, char* argv[]) {
 		auto ct = std::chrono::system_clock::now();
         double elapsed = (ct - g_lt).count();
         double since_start = std::chrono::duration_cast<std::chrono::milliseconds>(ct - start).count();
-        double tidal_since_start = std::chrono::duration_cast<std::chrono::milliseconds>(ct - tidal_start).count();
+        double tidal_since_start = since_start - ocean_data.gp.start;
         g_lt = ct;
 
 		/*********************************************************/
@@ -616,6 +624,9 @@ int main(int argc, char* argv[]) {
             obj_faces.push_back(glm::uvec3(obj_vertices.size() - 3, obj_vertices.size() - 2, obj_vertices.size() - 1));
 
             CHECK_GL_ERROR(glBindVertexArray(g_array_objects[kMengerVao]));
+
+            CHECK_GL_ERROR(glBindBuffer(GL_ARRAY_BUFFER, g_buffer_objects[kMengerVao][kVertexBuffer]));
+            CHECK_GL_ERROR(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, g_buffer_objects[kMengerVao][kIndexBuffer]));
 
             CHECK_GL_ERROR(glBufferData(GL_ARRAY_BUFFER, sizeof(float) * obj_vertices.size() * 4, obj_vertices.data(), GL_STATIC_DRAW));
             CHECK_GL_ERROR(glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(uint32_t) * obj_faces.size() * 3, obj_faces.data(), GL_STATIC_DRAW));
@@ -655,10 +666,8 @@ int main(int argc, char* argv[]) {
         CHECK_GL_ERROR(glBindVertexArray(g_array_objects[kMengerVao]));
 
 		// Pass uniforms in.
-		CHECK_GL_ERROR(glUniformMatrix4fv(projection_matrix_location, 1, GL_FALSE,
-			&projection_matrix[0][0]));
-		CHECK_GL_ERROR(glUniformMatrix4fv(view_matrix_location, 1, GL_FALSE,
-			&view_matrix[0][0]));
+		CHECK_GL_ERROR(glUniformMatrix4fv(projection_matrix_location, 1, GL_FALSE, &projection_matrix[0][0]));
+		CHECK_GL_ERROR(glUniformMatrix4fv(view_matrix_location, 1, GL_FALSE, &view_matrix[0][0]));
 		CHECK_GL_ERROR(glUniform4fv(light_position_location, 1, &light_position[0]));
         CHECK_GL_ERROR(glUniform1i(render_wireframe_location, g_render_wireframe));
 
@@ -696,9 +705,9 @@ int main(int argc, char* argv[]) {
 			CHECK_GL_ERROR(glUniform4fv(ULNAME(ocean, w_lpos), 1, &light_position[0]));
 			CHECK_GL_ERROR(glUniform1f(ULNAME(ocean, tcs_in_deg), tcs_in_deg));
 			CHECK_GL_ERROR(glUniform1f(ULNAME(ocean, tcs_out_deg), tcs_out_deg));
-            CHECK_GL_ERROR(glUniform1f(ULNAME(ocean, wave_time), since_start * -0.5));
+            CHECK_GL_ERROR(glUniform1f(ULNAME(ocean, wave_time), since_start));
             CHECK_GL_ERROR(glUniform1i(ULNAME(ocean, wave_type), g_wave_type));
-            CHECK_GL_ERROR(glUniform1f(ULNAME(ocean, tidal_time), tidal_since_start / 1000.0));
+            CHECK_GL_ERROR(glUniform1f(ULNAME(ocean, tidal_time), tidal_since_start));
             CHECK_GL_ERROR(glUniform1i(ULNAME(ocean, render_wireframe), g_render_wireframe));
             CHECK_GL_ERROR(glUniform1f(ULNAME(ocean, cterm), cterm));
             CHECK_GL_ERROR(glUniform1f(ULNAME(ocean, lterm), lterm));
@@ -724,19 +733,17 @@ int main(int argc, char* argv[]) {
     		CHECK_GL_ERROR(glDrawElements(GL_TRIANGLES, obj_faces.size() * 3, GL_UNSIGNED_INT, 0));
         }
 
-        if (g_launch_ships) {
+        if (g_launch_ships && enable_ocean) {
             // set program + vao
             CHECK_GL_ERROR(glUseProgram(ship_program_id));
             CHECK_GL_ERROR(glBindVertexArray(g_array_objects[kShipVao]));
             for (auto& instance : ship_instances) {
-                auto ship_model_matrix = ship::model_matrix(since_start * -0.5, instance, ocean_data);
-                // pass uniforms
+                auto ship_model_matrix = ship::model_matrix(since_start, instance, ocean_data);
                 CHECK_GL_ERROR(glUniformMatrix4fv(ULNAME(ship, projection), 1, GL_FALSE, &projection_matrix[0][0]));
                 CHECK_GL_ERROR(glUniformMatrix4fv(ULNAME(ship, view), 1, GL_FALSE, &view_matrix[0][0]));
                 CHECK_GL_ERROR(glUniformMatrix4fv(ULNAME(ship, model), 1, GL_FALSE, &ship_model_matrix[0][0]));
                 CHECK_GL_ERROR(glUniform4fv(ULNAME(ship, w_lpos), 1, &light_position[0]));
                 CHECK_GL_ERROR(glUniform1i(ULNAME(ship, render_wireframe), g_render_wireframe));
-                // Render ship
                 CHECK_GL_ERROR(glDrawElements(GL_TRIANGLES, obj_faces.size() * 3, GL_UNSIGNED_INT, 0));
             }
         }
@@ -744,35 +751,33 @@ int main(int argc, char* argv[]) {
 		/*********************************************************/
 		/*** Next Iteration **************************************/
 
-		// get interaction
-		glfwPollEvents();
+		glfwPollEvents(); // get interaction
+		glfwSwapBuffers(window); // swap buffer
 
-		// swap buffer
-		glfwSwapBuffers(window);
-
-		// smooth
-		if (smooth_ctrl) {
-			// time delta smoothing
-	        elapsed /= 2 * 10000000;
+		if (smooth_ctrl) { // time delta smoothing
+	        auto tdelta = elapsed / 20000000;
 	        if ((int) g_should_move) {
-	            g_camera.move(elapsed, (int) g_should_move);
+	            g_camera.move(tdelta, (int) g_should_move);
 	        }
 	        if ((int) g_should_roll) {
-	            g_camera.roll(elapsed, (int) g_should_roll);
+	            g_camera.roll(tdelta, (int) g_should_roll);
 	        }
 	        if ((int) g_should_pan_x) {
-	            g_camera.pan_x(elapsed, (int) g_should_pan_x);
+	            g_camera.pan_x(tdelta, (int) g_should_pan_x);
 	        }
 	        if ((int) g_should_pan_y) {
-	            g_camera.pan_y(elapsed, (int) g_should_pan_y);
+	            g_camera.pan_y(tdelta, (int) g_should_pan_y);
 	        }
 		}
 
-		// tidal
-		if(tidal_reset) {
+		if(tidal_reset) { // tidal wave
 			tidal_reset = false;
-			tidal_start = std::chrono::system_clock::now();
+            ocean_data.gp.start = since_start;
 		}
+
+        for (auto& instance : ship_instances) { // ships
+            instance.simulate(elapsed, ship_instances);
+        }
 	}
 
 	/*********************************************************/

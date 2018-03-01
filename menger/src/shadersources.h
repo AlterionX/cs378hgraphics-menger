@@ -141,7 +141,7 @@ out vec4 v_v_from_ldir;
 out vec4 v_v_norm;
 
 #define M_PI 3.1415926535897932384626433832795
-#define TIDAL_LEFT_T 100.0
+#define TIDAL_LEFT_T 100000.0
 
 /* gaussian tidal wave */
 float moving_gaussian_offset(vec2 pos, vec2 dir, vec2 center, float A, float sigma) {
@@ -150,8 +150,8 @@ float moving_gaussian_offset(vec2 pos, vec2 dir, vec2 center, float A, float sig
     return A * exp(-(dist * dist) / (2 * sigma * sigma)) / (2 * M_PI * sigma * sigma);
 }
 vec4 tidal_offset(float x, float y) {
-    vec2 dir =      vec2(1, 0);
-    vec2 center =   vec2(0, 0);
+    vec2 dir =      vec2(0.001, 0);
+    vec2 center =   vec2(-10, 0);
     float A =       40.0;
     float sigma =   1.0;
     return vec4(0.0f, moving_gaussian_offset(vec2(x, y), dir, center, A, sigma), 0.0f, 0.0f);
@@ -164,8 +164,8 @@ vec3 moving_gaussian_normal(vec2 pos, vec2 dir, vec2 center, float A, float sigm
     return vec3(-dx, 1, dy);
 }
 vec4 tidal_normal(float x, float y) {
-    vec2 dir =      vec2(1, 0);
-    vec2 center =   vec2(0, 0);
+    vec2 dir =      vec2(0.001, 0);
+    vec2 center =   vec2(-10, 0);
     float A =       40.0;
     float sigma =   1.0;
     return vec4(moving_gaussian_normal(vec2(x, y), dir, center, A, sigma), 0.0);
@@ -180,7 +180,7 @@ vec4 wave_offset(float x, float y) {
     vec2 wave_dir = vec2(1, 1);
     float A = 0.5;
     float freq = 0.5;
-    float phase = 0.01 * freq;
+    float phase = -0.005 * freq;
     float shift = 5;
     return vec4(0.0f, single_wave_offset(wave_dir, vec2(x, y), A, freq, phase, shift), 0.0f, 0.0f);
 }
@@ -193,7 +193,7 @@ vec4 wave_normal(float x, float y) {
     vec2 wave_dir = vec2(1, 1);
     float A = 0.5;
     float freq = 0.5;
-    float phase = 0.01 * freq;
+    float phase = -0.005 * freq;
     float shift = 5;
     return single_wave_normal(wave_dir, vec2(x, y), A, freq, phase, shift);
 }

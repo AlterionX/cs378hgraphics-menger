@@ -9,9 +9,8 @@
 namespace ship {
     struct instance {
         bool side;
-        glm::vec2 last_pos;
         glm::vec4 w_pos;
-        glm::vec2 vel;
+        glm::vec4 vel;
         glm::vec3 up;
         glm::vec3 forw;
         void simulate(double dt, std::vector<instance>& fellow_ships);
