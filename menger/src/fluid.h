@@ -6,13 +6,17 @@
 
 namespace fluid {
     struct wave_params {
-        wave_params(float a, float l, float s, float k, glm::vec2 dir);
-
         float a;
-        glm::vec2 dir;
-        float wavel;
-        float phase;
+        float l;
+        float s;
         float k;
+        glm::vec2 dir;
+
+        double life = 0;
+        double time = 0;
+
+        float wavel(void) const;
+        float phase(void) const;
     };
 
     struct gaussian_params {
@@ -32,10 +36,15 @@ namespace fluid {
         std::vector<wave_params> wpars;
         gaussian_params gp;
         std::vector<wave_packet> wpacks;
+
+        unsigned int storminess = 2;
+
+        void elapse_time(double elapsed);
     };
 
     glm::vec4 simulate_offset(double t, glm::vec2& pos, ocean_surf_params& ospars);
     glm::vec4 simulate_normal(double t, glm::vec2& pos, ocean_surf_params& ospars);
+    wave_params generate_wave(int storminess, int count);
 }
 
 #endif

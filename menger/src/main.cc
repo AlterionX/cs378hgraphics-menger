@@ -472,9 +472,21 @@ int main(int argc, char* argv[]) {
     GET_UNIFORM_LOC(ocean, w_lpos);
     GET_UNIFORM_LOC(ocean, tcs_in_deg);
     GET_UNIFORM_LOC(ocean, tcs_out_deg);
+
+    GET_UNIFORM_LOC(ocean, wave_cnt);
+    GLint ocean_waves_locations[20][5];
+    for (int i = 0; i < 20; ++i) {
+        const char* names[] {"A", "L", "S", "K", "dir"};
+        for (int j = 0; j < 5; j++) {
+            ocean_waves_locations[i][j] = 0;
+            CHECK_GL_ERROR(ocean_waves_locations[i][j] = glGetUniformLocation(ocean_program_id, std::string("waves[" + std::to_string(i) + "]." + names[j]).c_str()));
+        }
+    }
+
     GET_UNIFORM_LOC(ocean, wave_time);
     GET_UNIFORM_LOC(ocean, wave_type);
     GET_UNIFORM_LOC(ocean, tidal_time);
+
     GET_UNIFORM_LOC(ocean, render_wireframe);
     GET_UNIFORM_LOC(ocean, cterm);
     GET_UNIFORM_LOC(ocean, lterm);
@@ -515,7 +527,13 @@ int main(int argc, char* argv[]) {
     GET_UNIFORM_LOC(ship, model);
     GET_UNIFORM_LOC(ship, w_lpos);
     GET_UNIFORM_LOC(ship, render_wireframe);
-
+    GET_UNIFORM_LOC(ship, cterm);
+    GET_UNIFORM_LOC(ship, lterm);
+    GET_UNIFORM_LOC(ship, qterm);
+    GET_UNIFORM_LOC(ship, ka);
+    GET_UNIFORM_LOC(ship, kd);
+    GET_UNIFORM_LOC(ship, ks);
+    GET_UNIFORM_LOC(ship, alpha);
 
 	/*********************************************************/
 	/*** OpenGL: Uniforms ************************************/
@@ -536,17 +554,24 @@ int main(int argc, char* argv[]) {
     auto ocean_ks = glm::vec3(1.0, 1.0, 1.0);
     auto ocean_alpha = 20.0f;
 
+    auto ship_ka = glm::vec3(0.1, 0.1, 0.1);
+    auto ship_kd = glm::vec3(0.64, 0.64, 0.64);
+    auto ship_ks = glm::vec3(0.5, 0.5, 0.5);
+    auto ship_alpha = 96.078431f;
+
     //ocean data group
     fluid::ocean_surf_params ocean_data {
         std::vector<fluid::wave_params> {{
-            fluid::wave_params(0.5, 4, -0.005, 5, glm::vec2(1, 1))
+            fluid::generate_wave(0, 1),
+            fluid::generate_wave(0, 2),
+            fluid::generate_wave(0, 3)
         }},
         fluid::gaussian_params {
             glm::vec2(0.001, 0),
             glm::vec2(-10, 0),
             40.0,
             1.0,
-            std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::minutes(1)).count()
+            -std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::minutes(1)).count()
         },
         std::vector<fluid::wave_packet> {}
     };
@@ -556,6 +581,28 @@ int main(int argc, char* argv[]) {
         ship::instance {
             false, // side
             glm::vec4(0.0f, -2.0f, 0.0f, 1.0f),
+            glm::vec4(0.0001f, 0.0f, 0.0f, 0.0f),
+            glm::vec4(0.0f, 0.0f, 0.0f, 0.0f),
+            glm::vec3(0.0f, 0.0f, 0.0f),
+            glm::vec3(0.0f, 0.0f, 0.0f)
+        }, ship::instance {
+            false, // side
+            glm::vec4(1.0f, -2.0f, 1.0f, 1.0f),
+            glm::vec4(0.0001f, 0.0f, 0.0f, 0.0f),
+            glm::vec4(0.0f, 0.0f, 0.0f, 0.0f),
+            glm::vec3(0.0f, 1.0f, 0.0f),
+            glm::vec3(0.0f, 0.0f, -1.0f)
+        }, ship::instance {
+            false, // side
+            glm::vec4(1.0f, -2.0f, 5.0f, 1.0f),
+            glm::vec4(0.0001f, 0.0f, 0.0f, 0.0f),
+            glm::vec4(0.0f, 0.0f, 0.0f, 0.0f),
+            glm::vec3(0.0f, 1.0f, 0.0f),
+            glm::vec3(0.0f, 0.0f, -1.0f)
+        }, ship::instance {
+            false, // side
+            glm::vec4(7.0f, -2.0f, 3.0f, 1.0f),
+            glm::vec4(0.0001f, 0.0f, 0.0f, 0.0f),
             glm::vec4(0.0f, 0.0f, 0.0f, 0.0f),
             glm::vec3(0.0f, 1.0f, 0.0f),
             glm::vec3(0.0f, 0.0f, -1.0f)
@@ -600,19 +647,6 @@ int main(int argc, char* argv[]) {
             CHECK_GL_ERROR(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, g_buffer_objects[kMengerVao][kIndexBuffer]));
             CHECK_GL_ERROR(glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(uint32_t) * obj_faces.size() * 3, obj_faces.data(), GL_STATIC_DRAW));
 		}
-        g_ocean->reset();
-        if (enable_ocean && g_ocean->dirty()) {
-            std::cout << "wghat" << std::endl;
-            CHECK_GL_ERROR(glBindVertexArray(g_array_objects[kOceanVao]));
-
-            g_ocean->generate_geometry(ocean_vertices, ocean_faces);
-
-            CHECK_GL_ERROR(glBindBuffer(GL_ARRAY_BUFFER, g_buffer_objects[kOceanVao][kVertexBuffer]));
-            CHECK_GL_ERROR(glBufferData(GL_ARRAY_BUFFER, sizeof(float) * obj_vertices.size() * 4, ocean_vertices.data(), GL_STATIC_DRAW));
-
-            CHECK_GL_ERROR(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, g_buffer_objects[kOceanVao][kIndexBuffer]));
-            CHECK_GL_ERROR(glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(uint32_t) * obj_faces.size() * 4, ocean_faces.data(), GL_STATIC_DRAW));
-        }
 
 		/*********************************************************/
 		/*** OpenGL: Light + Camera ******************************/
@@ -624,7 +658,7 @@ int main(int argc, char* argv[]) {
 		// Compute the view matrix
 		glm::mat4 view_matrix = g_camera.get_view_matrix();
 
-		/*********************************************************/
+		/**************************************and()*******************/
 		/*** OpenGL: Render  *************************************/
 
         /** Universal settings ***/
@@ -663,8 +697,6 @@ int main(int argc, char* argv[]) {
 			// Render floor
 			CHECK_GL_ERROR(glPatchParameteri(GL_PATCH_VERTICES, 3));
 			CHECK_GL_ERROR(glDrawElements(GL_PATCHES, floor_faces.size() * 3, GL_UNSIGNED_INT, 0));
-			// CHECK_GL_ERROR(glDrawElements(GL_TRIANGLES, floor_faces.size() * 3, GL_UNSIGNED_INT, 0));
-			// CHECK_GL_ERROR(glDrawArrays(GL_PATCHES, 0, floor_faces.size() * 3)); // ???
 		} else { /*** Ocean Program ***/
 			// set program + vao
 			CHECK_GL_ERROR(glUseProgram(ocean_program_id));
@@ -676,6 +708,17 @@ int main(int argc, char* argv[]) {
 			CHECK_GL_ERROR(glUniform4fv(ULNAME(ocean, w_lpos), 1, &light_position[0]));
 			CHECK_GL_ERROR(glUniform1f(ULNAME(ocean, tcs_in_deg), tcs_in_deg));
 			CHECK_GL_ERROR(glUniform1f(ULNAME(ocean, tcs_out_deg), tcs_out_deg));
+
+            CHECK_GL_ERROR(glUniform1i(ULNAME(ocean, wave_cnt), ocean_data.wpars.size()));
+            for (size_t i = 0; i < ocean_data.wpars.size(); ++i) {
+                float cal = ocean_data.wpars[i].time / ocean_data.wpars[i].life;
+                CHECK_GL_ERROR(glUniform1f(ocean_waves_locations[i][0], ocean_data.wpars[i].a * ((1 - cal) * cal)));
+                CHECK_GL_ERROR(glUniform1f(ocean_waves_locations[i][1], ocean_data.wpars[i].l));
+                CHECK_GL_ERROR(glUniform1f(ocean_waves_locations[i][2], ocean_data.wpars[i].s));
+                CHECK_GL_ERROR(glUniform1f(ocean_waves_locations[i][3], ocean_data.wpars[i].k));
+                CHECK_GL_ERROR(glUniform2fv(ocean_waves_locations[i][4], 1, &ocean_data.wpars[i].dir[0]));
+            }
+
             CHECK_GL_ERROR(glUniform1f(ULNAME(ocean, wave_time), since_start));
             CHECK_GL_ERROR(glUniform1i(ULNAME(ocean, wave_type), g_wave_type));
             CHECK_GL_ERROR(glUniform1f(ULNAME(ocean, tidal_time), tidal_since_start));
@@ -701,7 +744,7 @@ int main(int argc, char* argv[]) {
             CHECK_GL_ERROR(glUniformMatrix4fv(ULNAME(light, model), 1, GL_FALSE, &light_model_matrix[0][0]));
             CHECK_GL_ERROR(glUniform4fv(ULNAME(light, w_lpos), 1, &light_position[0]));
             CHECK_GL_ERROR(glUniform1i(ULNAME(light, render_wireframe), g_render_wireframe));
-    		CHECK_GL_ERROR(glDrawElements(GL_TRIANGLES, obj_faces.size() * 3, GL_UNSIGNED_INT, 0));
+    		CHECK_GL_ERROR(glDrawElements(GL_TRIANGLES, light_faces.size() * 3, GL_UNSIGNED_INT, 0));
         }
 
         if (g_launch_ships && enable_ocean) {
@@ -715,7 +758,14 @@ int main(int argc, char* argv[]) {
                 CHECK_GL_ERROR(glUniformMatrix4fv(ULNAME(ship, model), 1, GL_FALSE, &ship_model_matrix[0][0]));
                 CHECK_GL_ERROR(glUniform4fv(ULNAME(ship, w_lpos), 1, &light_position[0]));
                 CHECK_GL_ERROR(glUniform1i(ULNAME(ship, render_wireframe), g_render_wireframe));
-                CHECK_GL_ERROR(glDrawElements(GL_TRIANGLES, obj_faces.size() * 3, GL_UNSIGNED_INT, 0));
+                CHECK_GL_ERROR(glUniform1f(ULNAME(ship, cterm), cterm));
+                CHECK_GL_ERROR(glUniform1f(ULNAME(ship, lterm), lterm));
+                CHECK_GL_ERROR(glUniform1f(ULNAME(ship, qterm), qterm));
+                CHECK_GL_ERROR(glUniform3fv(ULNAME(ship, ka), 1, &ship_ka[0]));
+                CHECK_GL_ERROR(glUniform3fv(ULNAME(ship, kd), 1, &ship_kd[0]));
+                CHECK_GL_ERROR(glUniform3fv(ULNAME(ship, ks), 1, &ship_ks[0]));
+                CHECK_GL_ERROR(glUniform1f(ULNAME(ship, alpha), ship_alpha));
+                CHECK_GL_ERROR(glDrawElements(GL_TRIANGLES, ship_faces.size() * 3, GL_UNSIGNED_INT, 0));
             }
         }
 
@@ -746,6 +796,7 @@ int main(int argc, char* argv[]) {
             ocean_data.gp.start = since_start;
 		}
 
+        ocean_data.elapse_time(elapsed);
         for (auto& instance : ship_instances) { // ships
             instance.simulate(elapsed, ship_instances);
         }

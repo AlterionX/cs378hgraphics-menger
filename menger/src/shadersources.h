@@ -140,6 +140,16 @@ uniform float tidal_time;
 out vec4 v_v_from_ldir;
 out vec4 v_v_norm;
 
+struct wave_params {
+    float A;
+    float L;
+    float S;
+    float K;
+    vec2 dir;
+};
+uniform int wave_cnt;
+uniform wave_params waves[20];
+
 #define M_PI 3.1415926535897932384626433832795
 #define TIDAL_LEFT_T 100000.0
 
@@ -177,25 +187,35 @@ float single_wave_offset(vec2 wave_dir, vec2 pos, float A, float freq, float pha
 }
 
 vec4 wave_offset(float x, float y) {
-    vec2 wave_dir = vec2(1, 1);
-    float A = 0.5;
-    float freq = 0.5;
-    float phase = -0.005 * freq;
-    float shift = 5;
-    return vec4(0.0f, single_wave_offset(wave_dir, vec2(x, y), A, freq, phase, shift), 0.0f, 0.0f);
+    float y_shift = 0;
+    for (int i = 0; i < wave_cnt; ++i) {
+        float A = waves[i].A;
+        float freq = 2 / waves[i].L;
+        float phase = 2 / waves[i].L * waves[i].S;
+        float shift = waves[i].K;
+        y_shift += single_wave_offset(waves[i].dir, vec2(x, y), A, freq, phase, shift);
+    }
+
+    return vec4(0.0f, y_shift, 0.0f, 0.0f);
 }
 vec4 single_wave_normal(vec2 wave_dir, vec2 pos, float A, float freq, float phase, float k) {
-    float dx = k * wave_dir[0] * freq * A * pow((sin(dot(wave_dir, pos) * freq + wave_time * phase) + 1) / 2, k - 1) * cos(dot(wave_dir, pos) * freq + wave_time * phase);
-    float dy = k * wave_dir[1] * freq * A * pow((sin(dot(wave_dir, pos) * freq + wave_time * phase) + 1) / 2, k - 1) * cos(dot(wave_dir, pos) * freq + wave_time * phase);
-    return vec4(-dx, 1, -dy, 0.0);
+    float base = k * freq * A * pow((sin(dot(wave_dir, pos) * freq + wave_time * phase) + 1) / 2, k - 1) * cos(dot(wave_dir, pos) * freq + wave_time * phase);
+    float dx = base * wave_dir[0];
+    float dy = base * wave_dir[1];
+    return vec4(dx, 1, -dy, 0.0);
 }
 vec4 wave_normal(float x, float y) {
-    vec2 wave_dir = vec2(1, 1);
-    float A = 0.5;
-    float freq = 0.5;
-    float phase = -0.005 * freq;
-    float shift = 5;
-    return single_wave_normal(wave_dir, vec2(x, y), A, freq, phase, shift);
+    vec4 norm = vec4(0.0);
+
+    for (int i = 0; i < wave_cnt; ++i) {
+        float A = waves[i].A;
+        float freq = 2 / waves[i].L;
+        float phase = 2 / waves[i].L * waves[i].S;
+        float shift = waves[i].K;
+        norm += single_wave_normal(waves[i].dir, vec2(x, y), A, freq, phase, shift);
+    }
+
+    return norm;
 }
 
 void main(void) {
@@ -418,6 +438,7 @@ uniform vec4 w_lpos;
 in vec4 v_norm;
 in vec4 v_from_ldir;
 in vec4 v_pos;
+
 in vec3 edge_dist;
 
 out vec4 frag_col;
@@ -496,5 +517,5 @@ const char* light_fs = emissive_fs;
 const char* ship_vs = cob_model_vs;
 const char* ship_tcs = nullptr;
 const char* ship_tes = nullptr;
-const char* ship_gs = wireframe_gs;
-const char* ship_fs = wireframe_orient_fs;
+const char* ship_gs = phong_norm_gs;
+const char* ship_fs = wireframe_phong_datten_fs;
