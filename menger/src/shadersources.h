@@ -88,7 +88,7 @@ vec4 wave_normal(float x, float y) {
 
 /*** no-op (for tessellation) ***/
 const char* passthrough_vs =
-R"zzz(#version 430 core
+R"zzz(#version 410 core
 in vec4 w_pos;
 
 void main() {
@@ -97,7 +97,7 @@ void main() {
 
 /*** convert to view basis ***/
 const char* cob_vs =
-R"zzz(#version 430 core
+R"zzz(#version 410 core
 uniform mat4 view;
 uniform vec4 w_lpos;
 
@@ -114,7 +114,7 @@ void main() {
 
 /*** convert to view basis and shift by model ***/
 const char* cob_model_vs =
-R"zzz(#version 430 core
+R"zzz(#version 410 core
 uniform mat4 view;
 uniform mat4 model;
 uniform vec4 w_lpos;
@@ -135,7 +135,7 @@ void main() {
 
 /*** triangle ***/
 const char* simple_tri_tcs =
-R"zzz(#version 430 core
+R"zzz(#version 410 core
 layout (vertices = 3) out;
 
 uniform float tcs_in_deg;
@@ -151,7 +151,7 @@ void main(void) {
     }
 })zzz";
 const char* simple_tri_tes =
-R"zzz(#version 430 core
+R"zzz(#version 410 core
 layout (triangles) in;
 
 uniform mat4 view;
@@ -171,7 +171,7 @@ void main(void){
 
 /*** quadrangle ***/
 const char* simple_quad_tcs =
-R"zzz(#version 430 core
+R"zzz(#version 410 core
 layout (vertices = 4) out;
 uniform float tcs_in_deg;
 uniform float tcs_out_deg;
@@ -191,7 +191,7 @@ void main(void){
     gl_out[gl_InvocationID].gl_Position = gl_in[gl_InvocationID].gl_Position;
 })zzz";
 const char* simple_quad_tes =
-R"zzz(#version 430 core
+R"zzz(#version 410 core
 layout (quads) in;
 
 uniform mat4 view;
@@ -212,7 +212,7 @@ void main(void) {
 
 /*** adative to tidal ***/
 const char* adaptive_quad_tcs =
-R"zzz(#version 430 core
+R"zzz(#version 410 core
 layout (vertices = 4) out;
 uniform float tcs_in_deg;
 uniform float tcs_out_deg;
@@ -253,7 +253,7 @@ void main(void){
 })zzz";
 
 std::string _tidal_quad_tes = std::string(
-R"zzz(#version 430 core
+R"zzz(#version 410 core
 layout (quads) in;
 uniform mat4 view;
 uniform vec4 w_lpos;
@@ -615,7 +615,7 @@ vec3 seabed_ocean_plane_intercept(vec3 seabed_pos, vec3 ocean_pos,
 float light_plane_col(float x, float y){
     float dist = x*x + y*y;
 
-    float L = 100.0, R = 5000.0, M = 1.0;
+    float L = 10.0, R = 1000.0, M = 1.0;
     float inten = 0.0;
     if(dist < L)
         inten = M;
@@ -637,18 +637,18 @@ void main() {
         }
         ocean_w_norm = normalize(ocean_w_norm);
 
-        // get "light plane" map interception
+        // get \"light plane\" map interception
         vec3 plane_isect = seabed_ocean_plane_intercept(w_pos.xyz,
-                                ocean_w_pos.xyz, ocean_w_norm.xyz, 1000.0);
+                                ocean_w_pos.xyz, ocean_w_norm.xyz, 500.0);
         float caustics_col = light_plane_col(plane_isect.x, plane_isect.z);
         // float caustics_col = light_plane_col(plane_isect.x - w_pos[0], plane_isect.z  - w_pos[2]);
 
         // local shading terms
-        vec3 ambient_col = vec3(0.20, 0.08, 0.02);
+        vec3 ambient_col = vec3(0.60, 0.32, 0.08);
 
         // sum shading terms
         float intensity = clamp(dot(normalize(v_from_ldir), normalize(v_norm)) * caustics_col, 0.0, 1.0);
-        frag_col = vec4(ambient_col + vec3(intensity), 1.0);
+        frag_col = vec4(ambient_col * vec3(intensity), 1.0);
         frag_col = clamp(frag_col, 0.0, 1.0);
     }
 })zzz") + wave_fns + tidal_fns;

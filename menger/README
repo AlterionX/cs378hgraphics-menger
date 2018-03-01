@@ -1,19 +1,34 @@
+*** Please run "menger" from a directory with "boat.obj" immediately in it ("boat.obj" can be found in "src" subdirectory)
+
 1. Your name and the name of your teammate (if any)
 
-	Benjamin Xu:			Stuff
-	Supawit Chockchowwat:	More stuff
+	Benjamin Xu:
+		- Relocate Camera and Light
+		- Green Wireframes
+		- Displacement Mapping
+		- Illumination of water
+		* Constant Wireframes Width
+		* Light Sphere
+		* Boat Mesh
+
+	Supawit Chockchowwat:
+		- Tessellation Control
+		- Tessellation Evaluation
+		- Tessellation from Quad Mesh
+		- Adaptive Tessellation
+		* Ocean Floor and Caustics
 
 2. An explanation of any required features that you know are not working completely correctly, but would like to have considered for partial credit
 
 3. Anything the milestone-specific specs below ask you to include.
-    Smooth/multi controls (delta t smoothing): Press more than one button at once! Also for those times when your computer is lagging but you don't want to. Press ctrl-m to toggle.
-    Camera reset: For those times when you get really, really lost. Press r to reset the camera to starting view.
-    Light displays: shows the light. press ctrl-l to toggle.
-    Menger sponge now optional for ocean: we all needed the improvement in enjoyment of the ocean. Press m during ocean mode to toggle.
-    Dynamic waves: Creates waves on the fly, varying in intensity, speed and quantity. Press p to toggle.
-    Storminess: answers the question of "how erratically does this water move?". Press o to increase, Shift-o to decrease. Wait for 10 to 20 seconds for changes.
-    Boats: boats. They bob. They move (through each other). They stick to water like fly to flytape. Press l to toggle.
-    Caustics: caustics. cool light effects. completely underappreciated. Press ctrl-c to toggle
 
-    Ocean transparency: cause we needed to see the caustics.
-    Wireframe regularization: regular widths for each edge.
+    Smooth/multi controls (delta t smoothing):		Press more than one button at once! Also for those times when your computer is lagging but you don't want to. Press ctrl-m to toggle.
+    Camera reset:									For those times when you get really, really lost. Press r to reset the camera to starting view.
+    Light displays:									shows the light. press ctrl-l to toggle.
+    Menger sponge now optional for ocean:			we all needed the improvement in enjoyment of the ocean. Press m during ocean mode to toggle.
+    Dynamic waves:									Creates waves on the fly, varying in intensity, speed and quantity. Press p to toggle.
+    Storminess:										answers the question of "how erratically does this water move?". Press o to increase, Shift-o to decrease. Wait for 10 to 20 seconds for changes.
+    Boats:											boats. They bob. They move (through each other). They stick to water like fly to flytape. Press l to toggle. If "boat.obj" is not found, spherical boats will be presented.
+    Caustics:										caustics. cool light effects. completely underappreciated. Press ctrl-c to toggle
+    Ocean transparency:								cause we needed to see the caustics.
+    Wireframe regularization:						regular widths for each edge.

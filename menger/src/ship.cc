@@ -16,7 +16,8 @@ void ship::generate_geometry(std::vector<glm::vec4>& obj_vertices, std::vector<g
 
     std::string line_buf;
     std::ifstream boat;
-    boat.open("./src/stuff.obj");
+    boat.open("boat.obj");
+    if(!boat.good()) return;
     std::vector<glm::vec4> verts;
     std::vector<glm::vec4> norms;
     std::vector<glm::vec2> tex_coord;
