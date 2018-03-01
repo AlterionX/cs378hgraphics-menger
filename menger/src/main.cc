@@ -610,7 +610,7 @@ int main(int argc, char* argv[]) {
             glm::vec2(-10, 0),
             40.0,
             1.0,
-            std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::minutes(1)).count()
+            std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::minutes(-1)).count()
         },
         std::vector<fluid::wave_packet> {}
     };
