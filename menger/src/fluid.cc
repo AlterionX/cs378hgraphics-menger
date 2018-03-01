@@ -115,7 +115,7 @@ void fluid::ocean_surf_params::elapse_time(double elapsed) {
             }
         }
     }
-    while (this->wpars.size() < 1 + this->storminess /*|| max_amp < target_amp*/) {
+    while (this->wpars.size() < 3 + this->storminess /*|| max_amp < target_amp*/) {
         this->wpars.push_back(generate_wave(this->storminess, this->wpars.size() + 1));
     }
 }
